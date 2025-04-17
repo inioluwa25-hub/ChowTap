@@ -59,7 +59,6 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-
           - Effect: Allow
             Principal:
               Service: apigateway.amazonaws.com
@@ -71,9 +70,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource:
-                  - !GetAtt AuthorizerFunction.Arn
-                  # - !Ref LambdaAuthFunctionArn
+                Resource: !GetAtt AuthorizerFunction.Arn
 
   AuthorizerFunction:
     Type: AWS::Serverless::Function
@@ -87,7 +84,7 @@ Resources:
   AuthorizerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${AuthorizerFunction}
+      LogGroupName: !Sub "/aws/lambda/${AuthorizerFunction}"
       RetentionInDays: 14
 
   PythonRequirementsLayer:

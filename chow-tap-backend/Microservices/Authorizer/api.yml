@@ -85,7 +85,7 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !GetAtt AuthorizerFunctionArn
+      FunctionName: !Ref AuthorizerFunctionArn  # Changed from !GetAtt to !Ref
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthorizerApiGateway}/${Stage}/*/*"
 

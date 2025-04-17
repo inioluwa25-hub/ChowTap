@@ -1,0 +1,68 @@
+name: Deploy AWS SAM Application
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: "us-east-1"
+  STACK_NAME: "chow-tap"
+
+jobs:
+  deploy:
+    name: Deploy AWS SAM Application
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chow-tap-backend
+
+    if: |
+      success() &&
+      !contains(github.event.head_commit.message, '[skip deploy]') &&
+      !contains(github.ref, 'refs/tags/')
+
+    strategy:
+      fail-fast: true
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python (required for AWS SAM CLI)
+      - name: Setup Python
+        uses: actions/setup-python@v4.0.0
+        with:
+          python-version: '3.10'
+    
+      # Step 3: Install AWS SAM CLI
+      - name: Install AWS SAM CLI
+        run: pip install aws-sam-cli
+        
+      # Step 4: Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      # Step 5: Install Python Packages for Linting
+      - name: Install Python Packages for Linting
+        run: pip install isort && pip install black
+      
+      # Step 6: Format Python Files
+      - name: Format Python Files
+        run: isort . && black -l 79 .
+
+      # Step 7: Build the SAM application
+      - name: Build SAM Application
+        run: sam build
+
+      # Step 8: Deploy the SAM application
+      - name: Deploy SAM Application
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            sam deploy --config-env prod
+          fi

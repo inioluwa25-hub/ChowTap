@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for Authorizer
+
+Parameters:
+  AppName:
+    Type: String
+  Stage:
+    Type: String
+  ServiceName:
+    Type: String
+  AwsLambdaPowertoolsPythonLayer:
+    Type: String
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Layers:
+      - !Ref PythonRequirementsLayer
+      - !Ref AwsLambdaPowertoolsPythonLayer
+    Runtime: python3.10
+    Tracing: Active
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        APP_NAME: !Ref AppName
+        STAGE: !Ref Stage
+
+Resources:
+  AuthorizerServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+        - "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-Authorizer-function"
+      Handler: main.handler
+      CodeUri: ./src/authorizer/
+      Role: !GetAtt AuthorizerServiceRole.Arn
+      Description: A simple Lambda function for authorization.
+
+  PythonRequirementsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-python-requirements"
+      Description: Dependencies for the auth service Lambda function
+      ContentUri: dependencies/requirements/
+      CompatibleRuntimes:
+        - python3.9
+      LicenseInfo: MIT
+    Metadata:
+      BuildMethod: python3.10
+
+Outputs:
+  AuthorizerFunctionArn:
+    Description: "Authorizer Function ARN"
+    Value: !GetAtt AuthorizerFunction.Arn

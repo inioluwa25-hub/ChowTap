@@ -111,6 +111,7 @@ Resources:
         Stage: !Ref Stage
         ServiceName: !Ref ServiceName
         AuthorizerApiGatewayRoleArn: !GetAtt AuthorizerApiGatewayRole.Arn
+        AuthorizerFunctionArn: !GetAtt AuthorizerFunction.Arn
 
 Outputs:
   AuthorizerFunctionArn:

@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: API Gateway configuration for Authorizer Service
+
+Parameters:
+  AppName:
+    Type: String
+  ServiceName:
+    Type: String
+  Stage:
+    Type: String
+  AuthorizerApiGatewayRoleArn:
+    Type: String
+  AuthorizerFunctionArn:
+    Type: String
+
+Resources:
+  AuthorizerApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-api"
+      TracingEnabled: true
+      EndpointConfiguration: REGIONAL
+      Auth:
+        DefaultAuthorizer: CustomLambdaAuthorizer
+        Authorizers:
+          CustomLambdaAuthorizer:
+            FunctionArn: !Ref AuthorizerFunctionArn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - Authorization
+              ReauthorizeEvery: 300
+      DefinitionBody:
+        openapi: 3.0.3
+        info:
+          version: 1.0.0
+          title: !Sub "${AppName}-${Stage}-${ServiceName}-api"
+          description: API for authorizing users
+
+        paths:
+          /authorizer/sign-in:
+            post:
+              security:
+                - CustomLambdaAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !Ref AuthorizerApiGatewayRoleArn
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthorizerFunctionArn}/invocations"
+              responses:
+                '200':
+                  description: Successful response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+            options:
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+  AuthorizerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt AuthorizerFunctionArn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthorizerApiGateway}/${Stage}/*/*"
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${AuthorizerApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+  AuthorizerApiId:
+    Description: "API Gateway ID"
+    Value: !Ref AuthorizerApiGateway

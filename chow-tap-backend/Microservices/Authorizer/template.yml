@@ -45,6 +45,36 @@ Resources:
             Action:
               - "sts:AssumeRole"
 
+  AuthorizerApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-role"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt AuthorizerFunction.Arn
+                  # - !Ref LambdaAuthFunctionArn
+
   AuthorizerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -53,6 +83,12 @@ Resources:
       CodeUri: ./src/authorizer/
       Role: !GetAtt AuthorizerServiceRole.Arn
       Description: A simple Lambda function for authorization.
+
+  AuthorizerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AuthorizerFunction}
+      RetentionInDays: 14
 
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion
@@ -65,6 +101,16 @@ Resources:
       LicenseInfo: MIT
     Metadata:
       BuildMethod: python3.10
+
+  AuthorizerApiGateway:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: api.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: !Ref ServiceName
+        AuthorizerApiGatewayRoleArn: !GetAtt AuthorizerApiGatewayRole.Arn
 
 Outputs:
   AuthorizerFunctionArn:

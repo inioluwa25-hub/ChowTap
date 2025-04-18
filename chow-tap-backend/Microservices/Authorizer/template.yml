@@ -11,6 +11,16 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
+  PoolId:
+    Type: String
+    Description: Cognito User Pool ID
+  ClientId:
+    Type: String
+    Description: Cognito App Client ID
+  ClientSecret:
+    Type: String
+    Description: Cognito App Client Secret
+    NoEcho: true
     
 Globals:
   Function:
@@ -28,6 +38,9 @@ Globals:
       Variables:
         APP_NAME: !Ref AppName
         STAGE: !Ref Stage
+        POOL_ID: !Ref PoolId
+        CLIENT_ID: !Ref ClientId
+        CLIENT_SECRET: !Ref ClientSecret
 
 Resources:
   AuthorizerServiceRole:
@@ -45,6 +58,18 @@ Resources:
                 - "lambda.amazonaws.com"
             Action:
               - "sts:AssumeRole"
+      Policies:
+        - PolicyName: CognitoAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminInitiateAuth
+                  - cognito-idp:InitiateAuth
+                  - cognito-idp:AdminGetUser
+                Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
+
 
   AuthorizerApiGatewayRole:
     Type: AWS::IAM::Role
@@ -119,6 +144,27 @@ Resources:
         ServiceName: !Ref ServiceName
         AuthorizerApiGatewayRoleArn: !GetAtt AuthorizerApiGatewayRole.Arn
         AuthorizerFunctionArn: !GetAtt AuthorizerFunction.Arn
+
+  ClientSecretParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AppName}/${Stage}/CLIENT_SECRET"
+      Type: SecureString
+      Value: !Ref ClientSecret
+
+  PoolIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AppName}/${Stage}/POOL_ID"
+      Type: String
+      Value: !Ref PoolId
+
+  ClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AppName}/${Stage}/CLIENT_ID"
+      Type: String
+      Value: !Ref ClientId
 
 Outputs:
   AuthorizerFunctionArn:

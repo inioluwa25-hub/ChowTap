@@ -13,6 +13,8 @@ Parameters:
     Type: String
   AuthorizerFunctionArn:
     Type: String
+  PoolId:
+    Type: String
 
 Resources:
   AuthorizerApiGateway:
@@ -25,6 +27,8 @@ Resources:
       Auth:
         DefaultAuthorizer: CustomLambdaAuthorizer
         Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${PoolId}"
           CustomLambdaAuthorizer:
             FunctionArn: !Ref AuthorizerFunctionArn
             FunctionPayloadType: REQUEST

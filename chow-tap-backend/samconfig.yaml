@@ -17,7 +17,7 @@ default:
         Stage=staging
         PoolId={{resolve:ssm:/chow-tap/prod/POOL_ID:1}}
         ClientId={{resolve:ssm:/chow-tap/prod/CLIENT_ID:1}}
-        ClientSecret={{resolve:ssm-secure:/chow-tap/prod/CLIENT_SECRET:1}}
+        ClientSecret={{resolve:ssm:/chow-tap/prod/CLIENT_SECRET:1}}
 
 # Production environment
 prod:
@@ -36,4 +36,4 @@ prod:
         Stage=prod
         PoolId={{resolve:ssm:/chow-tap/prod/POOL_ID:1}}
         ClientId={{resolve:ssm:/chow-tap/prod/CLIENT_ID:1}}
-        ClientSecret={{resolve:ssm-secure:/chow-tap/prod/CLIENT_SECRET:1}}
+        ClientSecret={{resolve:ssm:/chow-tap/prod/CLIENT_SECRET:1}}

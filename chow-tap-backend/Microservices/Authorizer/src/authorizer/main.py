@@ -17,7 +17,7 @@ from utils import (
 STAGE = getenv("STAGE")
 APP_NAME = getenv("APP_NAME")
 
-POOL_ID = getenv("PoolId")
+POOL_ID = getenv("POOL_ID")
 CLIENT_ID = parameters.get_parameter("CLIENT_ID")
 CLIENT_SECRET = parameters.get_parameter("CLIENT_SECRET")
 

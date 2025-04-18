@@ -11,16 +11,6 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-  PoolId:
-    Type: String
-    Description: Cognito User Pool ID
-  ClientId:
-    Type: String
-    Description: Cognito App Client ID
-  ClientSecret:
-    Type: String
-    Description: Cognito App Client Secret
-    NoEcho: true
     
 Globals:
   Function:
@@ -38,9 +28,6 @@ Globals:
       Variables:
         APP_NAME: !Ref AppName
         STAGE: !Ref Stage
-        POOL_ID: !Ref PoolId
-        CLIENT_ID: !Ref ClientId
-        CLIENT_SECRET: !Ref ClientSecret
 
 Resources:
   LoginServiceRole:

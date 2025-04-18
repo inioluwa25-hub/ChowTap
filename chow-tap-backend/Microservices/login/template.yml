@@ -31,41 +31,41 @@ Globals:
 
 Resources:
   LoginServiceRole:
-  Type: AWS::IAM::Role
-  Properties:
-    RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-login-role"
-    ManagedPolicyArns:
-      - "arn:aws:iam::aws:policy/AWSLambdaExecute"
-    AssumeRolePolicyDocument:
-      Version: "2012-10-17"
-      Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-              - "lambda.amazonaws.com"
-          Action:
-            - "sts:AssumeRole"
-    Policies:
-      - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-login-policy"
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Action:
-                - cognito-idp:InitiateAuth
-                - cognito-idp:AdminGetUser
-              Resource: "*"
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
-            - Effect: Allow 
-              Action:
-                - kms:Decrypt
-              Resource: "*"
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-login-role"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-login-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:InitiateAuth
+                  - cognito-idp:AdminGetUser
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+              - Effect: Allow 
+                Action:
+                  - kms:Decrypt
+                Resource: "*"
 
   LoginApiGatewayRole:
     Type: AWS::IAM::Role

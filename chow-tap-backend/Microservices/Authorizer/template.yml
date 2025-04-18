@@ -58,6 +58,14 @@ Resources:
                 - "lambda.amazonaws.com"
             Action:
               - "sts:AssumeRole"
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Resource:
+              - arn:aws:ssm:us-east-1:${AWS::AccountId}:parameter/chow-tap/prod/POOL_ID
+              - arn:aws:ssm:us-east-1:${AWS::AccountId}:parameter/chow-tap/prod/CLIENT_ID
+              - arn:aws:ssm:us-east-1:${AWS::AccountId}:parameter/chow-tap/prod/CLIENT_SECRET
       Policies:
         - PolicyName: CognitoAccessPolicy
           PolicyDocument:

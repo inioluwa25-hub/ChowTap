@@ -52,3 +52,6 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "authorizer"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+        PoolId: "{{resolve:ssm:/chow-tap/prod/POOL_ID:1}}"
+        ClientId: "{{resolve:ssm:/chow-tap/prod/CLIENT_ID:1}}"
+        ClientSecret: "{{resolve:ssm-secure:/chow-tap/prod/CLIENT_SECRET:1}}"

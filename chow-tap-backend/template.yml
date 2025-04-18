@@ -12,12 +12,6 @@ Parameters:
     AllowedValues:
       - staging
       - prod
-  PoolId:
-    Type: String
-  ClientId:
-    Type: String
-  ClientSecret:
-    Type: String
 
 Resources:
   MainTable:
@@ -49,12 +43,12 @@ Resources:
         ApplicationId: "arn:aws:serverlessrepo:eu-west-1:057560766410:applications/aws-lambda-powertools-python-layer-extras"
         SemanticVersion: "1.31.1"
 
-  AuthorizerService:
+  LoginService:
     Type: AWS::Serverless::Application
     Properties:
-      Location: Microservices/Authorizer/template.yml
+      Location: Microservices/login/template.yml
       Parameters:
         AppName: !Ref AppName
         Stage: !Ref Stage
-        ServiceName: "authorizer"
+        ServiceName: "login"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

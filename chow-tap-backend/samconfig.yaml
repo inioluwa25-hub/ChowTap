@@ -15,9 +15,9 @@ default:
       s3_prefix: "chow-tap-staging"
       parameter_overrides: >
         Stage=staging
-        PoolId={{resolve:ssm:/chow-tap/prod/POOL_ID:1}}
-        ClientId={{resolve:ssm:/chow-tap/prod/CLIENT_ID:1}}
-        ClientSecret={{resolve:ssm-secure:/chow-tap/prod/CLIENT_SECRET:1}}
+        PoolId=us-east-1_4jPibnfi1
+        ClientId=5q0la736qnon8t8jitr9noibfe
+        ClientSecret=u3t2r1d70sthsos920nok173uf4dvnf6nnqfjjii9pje71j7dfb
 
 # Production environment
 prod:
@@ -34,6 +34,6 @@ prod:
       s3_prefix: "chow-tap-prod"
       parameter_overrides: >
         Stage=prod
-        PoolId={{resolve:ssm:/chow-tap/prod/POOL_ID:1}}
-        ClientId={{resolve:ssm:/chow-tap/prod/CLIENT_ID:1}}
-        ClientSecret={{resolve:ssm-secure:/chow-tap/prod/CLIENT_SECRET:1}}
+        PoolId=us-east-1_4jPibnfi1
+        ClientId=5q0la736qnon8t8jitr9noibfe
+        ClientSecret=u3t2r1d70sthsos920nok173uf4dvnf6nnqfjjii9pje71j7dfb

@@ -11,7 +11,7 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-  POOL_ID:
+  PoolId:
     Type: String
     
 Globals:
@@ -30,7 +30,7 @@ Globals:
       Variables:
         APP_NAME: !Ref AppName
         STAGE: !Ref Stage
-        POOL_ID: !Ref POOL_ID
+        POOL_ID: !Ref PoolId
 
 Resources:
   AuthorizerServiceRole:

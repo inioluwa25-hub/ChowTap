@@ -15,7 +15,7 @@ default:
       s3_prefix: "chow-tap-staging"
       parameter_overrides: >
         Stage=staging
-        POOL_ID=us-east-1_4jPibnfi1
+        PoolId=us-east-1_4jPibnfi1
 
 # main environment
 prod:
@@ -32,5 +32,5 @@ prod:
       s3_prefix: "chow-tap-prod"
       parameter_overrides: >
         Stage=prod
-        POOL_ID=us-east-1_4jPibnfi1
+        PoolId=us-east-1_4jPibnfi1
 

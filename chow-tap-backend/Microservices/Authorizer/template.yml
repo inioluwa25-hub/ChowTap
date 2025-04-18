@@ -153,27 +153,6 @@ Resources:
         AuthorizerApiGatewayRoleArn: !GetAtt AuthorizerApiGatewayRole.Arn
         AuthorizerFunctionArn: !GetAtt AuthorizerFunction.Arn
 
-  ClientSecretParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/${AppName}/${Stage}/CLIENT_SECRET"
-      Type: String
-      Value: !Ref ClientSecret
-
-  PoolIdParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/${AppName}/${Stage}/POOL_ID"
-      Type: String
-      Value: !Ref PoolId
-
-  ClientIdParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/${AppName}/${Stage}/CLIENT_ID"
-      Type: String
-      Value: !Ref ClientId
-
 Outputs:
   AuthorizerFunctionArn:
     Description: "Authorizer Function ARN"

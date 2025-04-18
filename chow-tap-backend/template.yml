@@ -12,6 +12,12 @@ Parameters:
     AllowedValues:
       - staging
       - prod
+  PoolId:
+    Type: String
+  ClientId:
+    Type: String
+  ClientSecret:
+    Type: String
 
 Resources:
   MainTable:

@@ -43,7 +43,6 @@ Globals:
         CLIENT_SECRET: !Sub "/chow-tap/${Stage}/CLIENT_SECRET"
 
 Resources:
-  Resources:
   AuthorizerServiceRole:
     Type: AWS::IAM::Role
     Properties:

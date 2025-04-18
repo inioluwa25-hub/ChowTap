@@ -11,13 +11,16 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-
+  POOL_ID:
+    Type: String
+    
 Globals:
   Function:
     Timeout: 300
     MemorySize: 1024
     Layers:
       - !Ref PythonRequirementsLayer
+      - !Ref UtilsLayer
       - !Ref AwsLambdaPowertoolsPythonLayer
     Runtime: python3.10
     Tracing: Active
@@ -27,6 +30,7 @@ Globals:
       Variables:
         APP_NAME: !Ref AppName
         STAGE: !Ref Stage
+        POOL_ID: !Ref POOL_ID
 
 Resources:
   AuthorizerServiceRole:
@@ -101,6 +105,15 @@ Resources:
       CompatibleRuntimes:
         - python3.9
       LicenseInfo: MIT
+    Metadata:
+      BuildMethod: python3.10
+
+  UtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-utils-layer"
+      Description: Utility functions for Lambda
+      ContentUri: ./dependencies/utils/
     Metadata:
       BuildMethod: python3.10
 

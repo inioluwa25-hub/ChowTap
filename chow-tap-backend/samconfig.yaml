@@ -13,7 +13,9 @@ default:
       region: "us-east-1"
       resolve_s3: true
       s3_prefix: "chow-tap-staging"
-      parameter_overrides: "Stage=staging"
+      parameter_overrides: >
+        Stage=staging
+        POOL_ID=us-east-1_4jPibnfi1
 
 # main environment
 prod:
@@ -28,4 +30,7 @@ prod:
       region: "us-east-1"
       resolve_s3: true
       s3_prefix: "chow-tap-prod"
-      parameter_overrides: "Stage=prod"
+      parameter_overrides: >
+        Stage=prod
+        POOL_ID=us-east-1_4jPibnfi1
+

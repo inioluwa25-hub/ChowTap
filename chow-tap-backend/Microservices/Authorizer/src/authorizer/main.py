@@ -1,10 +1,11 @@
 import base64
 import hashlib
 import hmac
-import os
+from os import getenv
 
 import boto3
 from pydantic import BaseModel
+from aws_lambda_powertools.utilities import parameters
 from utils import (
     make_response,
     handle_exceptions,
@@ -13,11 +14,12 @@ from utils import (
 )
 
 # Environment variables
-STAGE = os.getenv("STAGE")
-APP_NAME = os.getenv("APP_NAME")
-POOL_ID = os.getenv("POOL_ID")
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+STAGE = getenv("STAGE")
+APP_NAME = getenv("APP_NAME")
+
+POOL_ID = getenv("POOL_ID")
+CLIENT_ID = parameters.get_parameter("CLIENT_ID")
+CLIENT_SECRET = parameters.get_parameter("CLIENT_SECRET")
 
 # AWS client
 client = boto3.client("cognito-idp")

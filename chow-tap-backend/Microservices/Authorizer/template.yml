@@ -49,6 +49,7 @@ Resources:
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AWSLambdaExecute"
         - "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
+        - !GetAtt SSMPolicy.Arn
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -70,9 +71,7 @@ Resources:
               - ssm:GetParameter
               - ssm:GetParameters
             Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/*"
           - Effect: Allow
             Action:
               - kms:Decrypt

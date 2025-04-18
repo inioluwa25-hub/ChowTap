@@ -38,17 +38,17 @@ Globals:
       Variables:
         APP_NAME: !Ref AppName
         STAGE: !Ref Stage
-        POOL_ID: !Sub "/chow-tap/${Stage}/POOL_ID"
-        CLIENT_ID: !Sub "/chow-tap/${Stage}/CLIENT_ID"
-        CLIENT_SECRET: !Sub "/chow-tap/${Stage}/CLIENT_SECRET"
+        POOL_ID: !Ref PoolId
+        CLIENT_ID: !Ref ClientId
+        CLIENT_SECRET: !Ref ClientSecret
 
 Resources:
   AuthorizerServiceRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-auth-role"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AWSLambdaExecute"
-        - "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
         - !GetAtt SSMPolicy.Arn
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -77,6 +77,12 @@ Resources:
             Action:
               - kms:Decrypt
             Resource: "*"
+          - Effect: Allow
+            Action:
+              - cognito-idp:AdminInitiateAuth
+              - cognito-idp:InitiateAuth
+              - cognito-idp:AdminGetUser
+            Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
 
   AuthorizerApiGatewayRole:
     Type: AWS::IAM::Role

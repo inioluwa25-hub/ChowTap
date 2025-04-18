@@ -1,10 +1,11 @@
 import base64
 import hashlib
 import hmac
+import json
 from os import getenv
 
 import boto3
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from aws_lambda_powertools.utilities import parameters
 from utils import (
     make_response,
@@ -17,16 +18,18 @@ from utils import (
 STAGE = getenv("STAGE")
 APP_NAME = getenv("APP_NAME")
 
-POOL_ID = parameters.get_parameter("POOL_ID")
-CLIENT_ID = parameters.get_parameter("CLIENT_ID")
-CLIENT_SECRET = parameters.get_parameter("CLIENT_SECRET")
+POOL_ID = parameters.get_parameter(f"/{APP_NAME}/{STAGE}/POOL_ID")
+CLIENT_ID = parameters.get_parameter(f"/{APP_NAME}/{STAGE}/CLIENT_ID")
+CLIENT_SECRET = parameters.get_parameter(
+    f"/{APP_NAME}/{STAGE}/CLIENT_SECRET", decrypt=True
+)
 
 # AWS client
 client = boto3.client("cognito-idp")
 
 
 class AuthorizerSchema(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
     def validate_password(self, data, **kwargs):
@@ -102,7 +105,8 @@ def main(event, context):
 
     logger.info(event)
     try:
-        payload = AuthorizerSchema().loads(event["body"])
+        body = json.loads(event["body"])  # Explicit JSON parsing
+        payload = AuthorizerSchema(**body)
         logger.info(f"Payload: {payload}")
         username = payload["email"]
         password = payload["password"]

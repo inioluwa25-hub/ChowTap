@@ -12,6 +12,12 @@ Parameters:
     AllowedValues:
       - staging
       - prod
+  PoolId:
+    Type: String
+  ClientId:
+    Type: String
+  ClientSecret:
+    Type: String
 
 Resources:
   MainTable:
@@ -52,3 +58,6 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "authorizer"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+        PoolId: "{{resolve:ssm:/chow-tap/prod/POOL_ID:1}}"
+        ClientId: "{{resolve:ssm:/chow-tap/prod/CLIENT_ID:1}}"
+        ClientSecret: "{{resolve:ssm:/chow-tap/prod/CLIENT_SECRET:1}}"

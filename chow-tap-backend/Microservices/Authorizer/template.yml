@@ -11,6 +11,16 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
+  PoolId:
+    Type: String
+    Description: Cognito User Pool ID
+  ClientId:
+    Type: String
+    Description: Cognito App Client ID
+  ClientSecret:
+    Type: String
+    Description: Cognito App Client Secret
+    NoEcho: true
     
 Globals:
   Function:
@@ -28,6 +38,9 @@ Globals:
       Variables:
         APP_NAME: !Ref AppName
         STAGE: !Ref Stage
+        POOL_ID: !Sub "/chow-tap/${Stage}/POOL_ID"
+        CLIENT_ID: !Sub "/chow-tap/${Stage}/CLIENT_ID"
+        CLIENT_SECRET: !Sub "/chow-tap/${Stage}/CLIENT_SECRET"
 
 Resources:
   AuthorizerServiceRole:
@@ -45,6 +58,25 @@ Resources:
                 - "lambda.amazonaws.com"
             Action:
               - "sts:AssumeRole"
+
+  SSMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+            Resource: "*"
 
   AuthorizerApiGatewayRole:
     Type: AWS::IAM::Role
@@ -116,6 +148,7 @@ Resources:
       Parameters:
         AppName: !Ref AppName
         Stage: !Ref Stage
+        PoolId: !Ref PoolId
         ServiceName: !Ref ServiceName
         AuthorizerApiGatewayRoleArn: !GetAtt AuthorizerApiGatewayRole.Arn
         AuthorizerFunctionArn: !GetAtt AuthorizerFunction.Arn

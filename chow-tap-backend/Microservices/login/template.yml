@@ -44,39 +44,19 @@ Resources:
                 - "lambda.amazonaws.com"
             Action:
               - "sts:AssumeRole"
-          - Effect: "Allow"
+          - Effect: Allow
             Action:
-              - "cognito-idp:ForgotPassword"
-              - "cognito-idp:ConfirmSignUp"
-              - "cognito-idp:GetUserAttributeVerificationCode"
-              - "cognito-idp:InitiateAuth"
-              - "cognito-idp:ConfirmForgotPassword"
-              - "cognito-idp:SignUp"
-              - "cognito-idp:VerifyUserAttribute"
-              - "cognito-idp:AssociateSoftwareToken"
-              - "cognito-idp:VerifySoftwareToken"
-              - "cognito-idp:RespondToAuthChallenge"
-              - "cognito-idp:ChangePassword"
-              - "cognito-idp:ResendConfirmationCode"
-              - "cognito-idp:AdminGetUser"
-              - "cognito-idp:DescribeUserPoolClient"
-              - "cognito-idp:AdminUpdateUserAttributes"
-              - "cognito-idp:AdminUserGlobalSignOut"
-              - "cognito-idp:AdminCreateUser"
-              - "cognito-idp:AdminDisableUser"
-              - "cognito-idp:AdminEnableUser"
-              - "cognito-idp:ListUsers"
-              - "cognito-idp:AdminDeleteUserAttributes"
+              - cognito-idp:InitiateAuth
+              - cognito-idp:AdminGetUser
             Resource: "*"
-          - Effect: "Allow"
+          - Effect: Allow
             Action:
               - "ssm:GetParameter"
             Resource:
-              [
-                !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID",
-                !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID",
-                !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET",
-              ]
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+              
 
   LoginApiGatewayRole:
     Type: AWS::IAM::Role

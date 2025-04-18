@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS SAM template for Authorizer
+Description: AWS SAM template for Login
 
 Parameters:
   AppName:
@@ -43,13 +43,11 @@ Globals:
         CLIENT_SECRET: !Ref ClientSecret
 
 Resources:
-  AuthorizerServiceRole:
+  LoginServiceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-auth-role"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AWSLambdaExecute"
-        - !GetAtt SSMPolicy.Arn
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -59,32 +57,41 @@ Resources:
                 - "lambda.amazonaws.com"
             Action:
               - "sts:AssumeRole"
-
-  SSMPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
+          - Effect: "Allow"
             Action:
-              - ssm:GetParameter
-            Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
-          - Effect: Allow
-            Action:
-              - kms:Decrypt
+              - "cognito-idp:ForgotPassword"
+              - "cognito-idp:ConfirmSignUp"
+              - "cognito-idp:GetUserAttributeVerificationCode"
+              - "cognito-idp:InitiateAuth"
+              - "cognito-idp:ConfirmForgotPassword"
+              - "cognito-idp:SignUp"
+              - "cognito-idp:VerifyUserAttribute"
+              - "cognito-idp:AssociateSoftwareToken"
+              - "cognito-idp:VerifySoftwareToken"
+              - "cognito-idp:RespondToAuthChallenge"
+              - "cognito-idp:ChangePassword"
+              - "cognito-idp:ResendConfirmationCode"
+              - "cognito-idp:AdminGetUser"
+              - "cognito-idp:DescribeUserPoolClient"
+              - "cognito-idp:AdminUpdateUserAttributes"
+              - "cognito-idp:AdminUserGlobalSignOut"
+              - "cognito-idp:AdminCreateUser"
+              - "cognito-idp:AdminDisableUser"
+              - "cognito-idp:AdminEnableUser"
+              - "cognito-idp:ListUsers"
+              - "cognito-idp:AdminDeleteUserAttributes"
             Resource: "*"
-          - Effect: Allow
+          - Effect: "Allow"
             Action:
-              - cognito-idp:AdminInitiateAuth
-              - cognito-idp:InitiateAuth
-              - cognito-idp:AdminGetUser
-            Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
+              - "ssm:GetParameter"
+            Resource:
+              [
+                !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID",
+                !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID",
+                !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET",
+              ]
 
-  AuthorizerApiGatewayRole:
+  LoginApiGatewayRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-role"
@@ -109,21 +116,21 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt AuthorizerFunction.Arn
+                Resource: !GetAtt LoginFunction.Arn
 
-  AuthorizerFunction:
+  LoginFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-Authorizer-function"
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-login-function"
       Handler: main.handler
-      CodeUri: ./src/authorizer/
-      Role: !GetAtt AuthorizerServiceRole.Arn
-      Description: A simple Lambda function for authorization.
+      CodeUri: ./src/login/
+      Role: !GetAtt LoginServiceRole.Arn
+      Description: A simple Lambda function for logging in.
 
-  AuthorizerFunctionLogGroup:
+  LoginFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${AuthorizerFunction}"
+      LogGroupName: !Sub "/aws/lambda/${LoginFunction}"
       RetentionInDays: 14
 
   PythonRequirementsLayer:
@@ -147,19 +154,18 @@ Resources:
     Metadata:
       BuildMethod: python3.10
 
-  AuthorizerApiGateway:
+  LoginApiGateway:
     Type: AWS::Serverless::Application
     Properties:
       Location: api.yml
       Parameters:
         AppName: !Ref AppName
         Stage: !Ref Stage
-        PoolId: !Ref PoolId
         ServiceName: !Ref ServiceName
-        AuthorizerApiGatewayRoleArn: !GetAtt AuthorizerApiGatewayRole.Arn
-        AuthorizerFunctionArn: !GetAtt AuthorizerFunction.Arn
+        LoginApiGatewayRoleArn: !GetAtt LoginApiGatewayRole.Arn
+        LoginFunctionArn: !GetAtt LoginFunction.Arn
 
 Outputs:
-  AuthorizerFunctionArn:
-    Description: "Authorizer Function ARN"
-    Value: !GetAtt AuthorizerFunction.Arn
+  LoginFunctionArn:
+    Description: "Login Function ARN"
+    Value: !GetAtt LoginFunction.Arn

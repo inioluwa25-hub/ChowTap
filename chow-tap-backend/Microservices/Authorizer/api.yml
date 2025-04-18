@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: API Gateway configuration for Authorizer Service
+Description: Login API requirements
 
 Parameters:
   AppName:
@@ -9,53 +9,37 @@ Parameters:
     Type: String
   Stage:
     Type: String
-  AuthorizerApiGatewayRoleArn:
+  LoginApiGatewayRoleArn:
     Type: String
-  AuthorizerFunctionArn:
-    Type: String
-  PoolId:
+  LoginFunctionArn:
     Type: String
 
 Resources:
-  AuthorizerApiGateway:
+  LoginApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref Stage
-      Name: !Sub "${AppName}-${Stage}-${ServiceName}-api"
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-login-api"
       TracingEnabled: true
       EndpointConfiguration: REGIONAL
-      Auth:
-        DefaultAuthorizer: CustomLambdaAuthorizer
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${PoolId}"
-          CustomLambdaAuthorizer:
-            FunctionArn: !Ref AuthorizerFunctionArn
-            FunctionPayloadType: REQUEST
-            Identity:
-              Headers:
-                - Authorization
-              ReauthorizeEvery: 300
       DefinitionBody:
         openapi: 3.0.3
         info:
           version: 1.0.0
-          title: !Sub "${AppName}-${Stage}-${ServiceName}-api"
-          description: API for authorizing users
+          title: !Sub "${AppName}-${Stage}-${ServiceName}-login-api"
+          description: Public login API
 
         paths:
-          /authorizer/sign-in:
+          /login:
             post:
-              security:
-                - CustomLambdaAuthorizer: []
               x-amazon-apigateway-integration:
-                credentials: !Ref AuthorizerApiGatewayRoleArn
+                credentials: !Ref LoginApiGatewayRoleArn
                 httpMethod: POST
                 type: aws_proxy
-                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthorizerFunctionArn}/invocations"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LoginFunctionArn}/invocations"
               responses:
                 '200':
-                  description: Successful response
+                  description: Successful login
                   content:
                     application/json:
                       schema:
@@ -63,7 +47,7 @@ Resources:
             options:
               responses:
                 "200":
-                  description: "200 response"
+                  description: "CORS response"
                   headers:
                     Access-Control-Allow-Origin:
                       type: "string"
@@ -79,24 +63,24 @@ Resources:
                   default:
                     statusCode: "200"
                     responseParameters:
-                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
                       method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                     responseTemplates:
                       application/json: "{}"
 
-  AuthorizerPermission:
+  LoginApiPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !Ref AuthorizerFunctionArn  # Changed from !GetAtt to !Ref
+      FunctionName: !Ref LoginFunctionArn
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthorizerApiGateway}/${Stage}/*/*"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${LoginApi}/${Stage}/*/*"
 
 Outputs:
-  ApiUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${AuthorizerApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
-  AuthorizerApiId:
-    Description: "API Gateway ID"
-    Value: !Ref AuthorizerApiGateway
+  LoginApiUrl:
+    Description: "Login API endpoint URL"
+    Value: !Sub "https://${LoginApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/login"
+  LoginApiId:
+    Description: "Login API ID"
+    Value: !Ref LoginApi

@@ -53,26 +53,27 @@ Resources:
               # Cognito permissions
               - Effect: Allow
                 Action:
-                  - cognito-idp:*
+                  - cognito-idp:InitiateAuth
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:RespondToAuthChallenge
                 Resource: "*"
               
-              # SSM Parameter Store permissions (updated)
+              # SSM Parameter Store permissions
               - Effect: Allow
                 Action:
                   - ssm:GetParameter
-                  - ssm:GetParameters
-                  - ssm:GetParametersByPath
                 Resource:
-                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/*"
-                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${APP_NAME}/${Stage}/*"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
               
-              # KMS permissions (for decrypting secure strings)
+              # KMS permissions
               - Effect: Allow 
                 Action:
                   - kms:Decrypt
                 Resource: "*"
               
-              # DynamoDB permissions
+              # DynamoDB permissions - SPECIFIC to your table
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem

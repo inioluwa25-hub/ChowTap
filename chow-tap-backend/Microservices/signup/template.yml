@@ -50,11 +50,15 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # Cognito permissions
               - Effect: Allow
                 Action:
                   - cognito-idp:InitiateAuth
                   - cognito-idp:AdminGetUser
+                  - cognito-idp:RespondToAuthChallenge
                 Resource: "*"
+              
+              # SSM Parameter Store permissions
               - Effect: Allow
                 Action:
                   - ssm:GetParameter
@@ -62,10 +66,25 @@ Resources:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+              
+              # KMS permissions
               - Effect: Allow 
                 Action:
                   - kms:Decrypt
                 Resource: "*"
+              
+              # DynamoDB permissions - SPECIFIC to your table
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"
 
   SignupApiGatewayRole:
     Type: AWS::IAM::Role

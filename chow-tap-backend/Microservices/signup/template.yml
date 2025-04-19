@@ -109,6 +109,21 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${SignupFunction}"
       RetentionInDays: 14
 
+  ConfirmsignupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-confirm-signup-function"
+      Handler: main.handler
+      CodeUri: ./src/confirm-signup/
+      Role: !GetAtt SignupServiceRole.Arn
+      Description: A simple Lambda function for confirming signing up.
+
+  ConfirmsignupFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ConfirmsignupFunction}"
+      RetentionInDays: 14
+
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -140,8 +155,12 @@ Resources:
         ServiceName: !Ref ServiceName
         SignupApiGatewayRoleArn: !GetAtt SignupApiGatewayRole.Arn
         SignupFunctionArn: !GetAtt SignupFunction.Arn
+        ConfirmsignupFunctionArn: !GetAtt ConfirmsignupFunction.Arn
 
 Outputs:
   SignupFunctionArn:
     Description: "Signup Function ARN"
     Value: !GetAtt SignupFunction.Arn
+  ConfirmsignupFunctionArn:
+    Description: "Signup Function ARN"
+    Value: !GetAtt ConfirmsignupFunction.Arn

@@ -25,6 +25,12 @@ response = {
 }
 
 
+def admin_get_user(cognito_client, user_pool_id, username):
+    response = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=username)
+    data = {attr.get("Name"): attr.get("Value") for attr in response["UserAttributes"]}
+    return data
+
+
 def validate_payload(event, model):
     """
     Validate the input payload against a given model.

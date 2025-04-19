@@ -133,3 +133,9 @@ Outputs:
   SignupApiId:
     Description: "Signup API ID"
     Value: !Ref SignupApi
+  ConfirmsignupApiUrl:
+    Description: "Confirm signup API endpoint URL"
+    Value: !Sub "https://${SignupApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/confirm-signup"
+  ConfirmsignupApiId:
+    Description: "Confirm signup API ID"
+    Value: !Ref SignupApi

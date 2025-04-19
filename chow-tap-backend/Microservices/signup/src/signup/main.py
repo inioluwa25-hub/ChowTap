@@ -1,18 +1,14 @@
 import base64
 import hashlib
 import hmac
-import traceback
 import json
+import traceback
 from os import getenv
 
 import boto3
-from pydantic import BaseModel, EmailStr
 from aws_lambda_powertools.utilities import parameters
-from utils import (
-    make_response,
-    handle_exceptions,
-    logger,
-)
+from pydantic import BaseModel, EmailStr, validator
+from utils import handle_exceptions, logger, make_response
 
 # Environment variables
 STAGE = getenv("STAGE")
@@ -35,10 +31,8 @@ class SignupSchema(BaseModel):
     phone_number: str
     password: str
 
-    def validate_password(self, data, **kwargs):
-        password = data.get("password")
-        if not password:
-            raise ValueError("Password is required.")
+    @validator("password")
+    def validate_password(cls, password):
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long.")
         if not any(c.isupper() for c in password):
@@ -47,6 +41,7 @@ class SignupSchema(BaseModel):
             raise ValueError("Password must contain at least one digit.")
         if not any(c in "@$!%*?&-.,.#`~^()" for c in password):
             raise ValueError("Password must contain at least one special character.")
+        return password
 
 
 def get_secret_hash_individual(username: str) -> str:
@@ -95,19 +90,21 @@ def main(event, context=None):
         payload = SignupSchema(**body)
         logger.info(f"payload - {payload}")
         user_attr = [
-            {"Name": "email", "Value": payload["email"]},
-            {"Name": "first_name", "Value": payload["first_name"]},
-            {"Name": "last_name", "Value": payload["last_name"]},
-            {"Name": "phone_number", "Value": payload["phone_number"]},
+            {"Name": "email", "Value": payload.email},
+            {"Name": "given_name", "Value": payload.first_name},
+            {"Name": "family_name", "Value": payload.last_name},
+            {"Name": "phone_number", "Value": payload.phone_number},
         ]
+
         client.sign_up(
             ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash_individual(payload["email"]),
-            Username=payload["email"],
-            Password=payload["password"],
+            SecretHash=get_secret_hash_individual(payload.email),
+            Username=payload.email,
+            Password=payload.password,
             UserAttributes=user_attr,
-            ValidationData=[{"Name": "email", "Value": payload["email"]}],
+            ValidationData=[{"Name": "email", "Value": payload.email}],
         )
+
         status_code = 200
         response["error"] = False
         response["success"] = True

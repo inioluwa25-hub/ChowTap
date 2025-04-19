@@ -92,7 +92,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt SignupFunction.Arn
+                Resource: 
+                  - !GetAtt SignupFunction.Arn
+                  - !GetAtt ConfirmsignupFunction.Arn 
 
   SignupFunction:
     Type: AWS::Serverless::Function

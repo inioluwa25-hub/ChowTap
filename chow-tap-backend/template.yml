@@ -52,3 +52,13 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "login"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
+  SignupService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/signup/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "signup"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

@@ -28,7 +28,7 @@ CLIENT_SECRET = parameters.get_parameter(
 client = boto3.client("cognito-idp")
 
 
-class AuthorizerSchema(BaseModel):
+class LoginSchema(BaseModel):
     email: EmailStr
     password: str
 
@@ -84,13 +84,12 @@ def admin_get_user(cognito_client, user_pool_id, username):
 
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
-def main(event, context):
+def main(event, context=None):
     """
     Authenticate a user and generate tokens using AWS Cognito.
 
     Args:
         event (dict): Event data including user input and headers.
-        context (dict): Lambda context (unused).
 
     Returns:
         dict: A response containing authentication tokens or error messages.
@@ -105,11 +104,11 @@ def main(event, context):
 
     logger.info(event)
     try:
-        body = json.loads(event["body"])  # Explicit JSON parsing
-        payload = AuthorizerSchema(**body)
+        body = json.loads(event["body"])
+        payload = LoginSchema(**body)
         logger.info(f"Payload: {payload}")
-        username = payload["email"]
-        password = payload["password"]
+        username = payload.email
+        password = payload.password
 
         # Authenticate user with Cognito
         secret_hash = get_secret_hash(username)
@@ -124,23 +123,30 @@ def main(event, context):
             },
             ClientMetadata={"username": username, "password": password},
         )
+        logger.info(f"Auth response: {auth_response}")
 
         # Extract authentication results
-        tokens = auth_response["AuthenticationResult"]
-        response["data"] = {
-            "id_token": tokens["IdToken"],
-            "refresh_token": tokens["RefreshToken"],
-            "access_token": tokens["AccessToken"],
-            "expires_in": tokens["ExpiresIn"],
-            "token_type": tokens["TokenType"],
-        }
+        if "AuthenticationResult" in auth_response:
+            tokens = auth_response["AuthenticationResult"]
+            response["data"] = {
+                "id_token": tokens["IdToken"],
+                "refresh_token": tokens["RefreshToken"],
+                "access_token": tokens["AccessToken"],
+                "expires_in": tokens["ExpiresIn"],
+                "token_type": tokens["TokenType"],
+            }
 
-        # Handle cookies and user-specific operations
-        user_sub = admin_get_user(client, POOL_ID, username)["sub"]
-        handle_cookies(event, user_sub)
+            # Handle cookies and user-specific operations
+            user_sub = admin_get_user(client, POOL_ID, username)["sub"]
+            handle_cookies(event, user_sub)
 
-        status_code = 200
-        response.update(error=False, success=True, message="Login successful")
+            status_code = 200
+            response.update(error=False, success=True, message="Login successful")
+        else:
+            logger.warning(f"No AuthenticationResult in auth_response: {auth_response}")
+            response["message"] = (
+                f"Authentication requires additional challenge: {auth_response.get('ChallengeName', 'Unknown')}"
+            )
 
     except ValueError as e:
         logger.error(f"Error: {e}")
@@ -163,3 +169,9 @@ def main(event, context):
         response["message"] = "An unexpected error occurred"
 
     return make_response(status_code, response)
+
+
+@logger.inject_lambda_context(log_event=True)
+@handle_exceptions
+def handler(event, context):
+    return main(event, context)

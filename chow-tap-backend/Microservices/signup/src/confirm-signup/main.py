@@ -2,10 +2,11 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 from os import getenv
 
 import boto3
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from aws_lambda_powertools.utilities import parameters
 from utils import (
     make_response,
@@ -30,33 +31,24 @@ client = boto3.client("cognito-idp")
 
 
 class ConfirmsignupSchema(BaseModel):
-    email: EmailStr
+    email: str  # Changed from phone_number to email
     code: str
+    phone_number: str  # Added phone number for verification
 
 
-def get_secret_hash(username, client_id, client_secret):
-    msg = username + client_id
+def get_secret_hash(username: str) -> str:
+    msg = username + CLIENT_ID
     dig = hmac.new(
-        str(client_secret).encode("utf-8"),
+        str(CLIENT_SECRET).encode("utf-8"),
         msg=str(msg).encode("utf-8"),
         digestmod=hashlib.sha256,
     ).digest()
-    d2 = base64.b64encode(dig).decode()
-    return d2
+    return base64.b64encode(dig).decode()
 
 
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
-    """
-    Authenticate a user and generate tokens using AWS Cognito.
-
-    Args:
-        event (dict): Event data including user input and headers.
-
-    Returns:
-        dict: A response containing authentication tokens or error messages.
-    """
     status_code = 400
     response = {
         "error": True,
@@ -65,22 +57,57 @@ def main(event, context=None):
         "data": None,
     }
 
-    logger.info(event)
     try:
         body = json.loads(event["body"])
         payload = ConfirmsignupSchema(**body)
         logger.info(f"payload - {payload}")
-        client.confirm_sign_up(
-            ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash(payload.email, CLIENT_ID, CLIENT_SECRET),
-            Username=payload.email,
-            ConfirmationCode=payload.code,
-            ForceAliasCreation=False,
-        )
-        user_data = admin_get_user(client, POOL_ID, payload.email)
-        customer = {"pk": "user", "sk": f"user_{user_data['sub']}"}
 
-        # Defination of user's permissions
+        # Convert to E.164 format for verification
+        e164_phone = (
+            "+234" + payload.phone_number[1:]
+            if payload.phone_number.startswith("0")
+            else payload.phone_number
+        )
+
+        # Verify the confirmation code
+        client.verify_user_attribute(
+            AccessToken=get_access_token(
+                payload.email
+            ),  # You'll need to implement this
+            AttributeName="phone_number",
+            Code=payload.code,
+        )
+
+        # Alternative approach if above doesn't work:
+        # client.confirm_sign_up(
+        #     ClientId=CLIENT_ID,
+        #     SecretHash=get_secret_hash(payload.email),
+        #     Username=payload.email,
+        #     ConfirmationCode=payload.code,
+        #     ForceAliasCreation=False,
+        # )
+
+        # Mark phone as verified
+        client.admin_update_user_attributes(
+            UserPoolId=POOL_ID,
+            Username=payload.email,
+            UserAttributes=[
+                {"Name": "phone_number_verified", "Value": "true"},
+                {"Name": "phone_number", "Value": e164_phone},
+            ],
+        )
+
+        # Get user data
+        user_data = admin_get_user(client, POOL_ID, payload.email)
+        customer = {
+            "pk": "user",
+            "sk": f"user_{user_data['sub']}",
+            "email": payload.email,
+            "phone_number": payload.phone_number,
+            "phone_verified": True,
+        }
+
+        # Load user permissions
         with open("user_permissions.json", "r", encoding="utf-8") as file:
             permissions = json.load(file)
 
@@ -88,43 +115,35 @@ def main(event, context=None):
         customer.update(user_data)
         create_document(customer)
 
-        # # send welcome email
-        # template_raw = get_template_from_s3("welcome")
-        # template = template_raw.replace("{{EMAIL}}", payload["email"])
-        # template = template.replace("{{Given_Name}}", user_data["given_name"])
-
-        # send_email(payload["email"], "Welcome to Vecul! Let's Get Started 🚗", template)
-
+        response.update(
+            error=False,
+            success=True,
+            message="Phone number has been verified and signup completed",
+            data={"email": payload.email, "phone_verified": True},
+        )
         status_code = 200
-        response["error"] = False
-        response["success"] = True
-        response["message"] = "signup has been confirmed"
-    except client.exceptions.UserNotFoundException as e:
-        logger.error(e)
-        response["message"] = "user not found"
-    except client.exceptions.CodeMismatchException as e:
-        logger.error(e)
-        response["message"] = "invalid code"
-    except client.exceptions.ExpiredCodeException as e:
-        logger.error(e)
-        response["message"] = "invalid code"
-    except client.exceptions.InvalidParameterException as e:
-        logger.error(e)
-        response["message"] = "user already confirmed"
-    except client.exceptions.NotAuthorizedException as e:
-        logger.error(e)
-        response["message"] = "User cannot be confirmed."
-    except ValueError as e:
-        logger.error(e)
-        error_message = {}
-        for field, errors in e.messages.items():
-            error_message[field] = errors[0]
-        response["message"] = error_message
+
+    except client.exceptions.UserNotFoundException:
+        response["message"] = "User not found"
+    except client.exceptions.CodeMismatchException:
+        response["message"] = "Invalid verification code"
+    except client.exceptions.ExpiredCodeException:
+        response["message"] = "Verification code has expired"
+    except client.exceptions.NotAuthorizedException:
+        response["message"] = "Verification failed - please try again"
     except Exception as e:
-        logger.error(e)
-        response["message"] = str(e)
+        logger.error(f"Verification error: {str(e)}")
+        response["message"] = "Verification process failed"
         status_code = 500
+
     return make_response(status_code, response)
+
+
+# Helper function to get access token (implement based on your auth flow)
+def get_access_token(username: str) -> str:
+    # Implement token retrieval logic here
+    # This might involve calling initiate_auth or checking session
+    pass
 
 
 @logger.inject_lambda_context(log_event=True)

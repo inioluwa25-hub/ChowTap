@@ -1,0 +1,38 @@
+{
+    "bank": {
+        "create": true,
+        "view": true,
+        "update": true,
+        "delete": true,
+        "list": true
+    },
+    "booking": {
+        "create": true,
+        "view": true,
+        "update": true,
+        "delete": true,
+        "list": true
+    },
+    "car": {
+        "create": true,
+        "view": true,
+        "update": true,
+        "delete": true,
+        "list": true,
+        "is_promoted": false
+    },
+    "payment": {
+        "create": true,
+        "view": true,
+        "update": true,
+        "delete": true,
+        "list": true
+    },
+    "rental": {
+        "create": true,
+        "view": true,
+        "update": true,
+        "delete": true,
+        "list": true
+    }
+}

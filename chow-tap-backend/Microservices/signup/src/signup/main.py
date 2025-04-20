@@ -2,12 +2,13 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import traceback
 from os import getenv
 
 import boto3
 from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, validator
 from utils import handle_exceptions, logger, make_response
 
 # Environment variables
@@ -31,7 +32,7 @@ class SignupSchema(BaseModel):
     phone_number: str
     password: str
 
-    @field_validator("phone_number")
+    @validator("phone_number")
     def validate_phone_number(cls, phone_number):
         # Validate Nigerian phone number format
         if not re.match(r"^0[7-9][0-1]\d{8}$", phone_number):
@@ -40,7 +41,7 @@ class SignupSchema(BaseModel):
             )
         return phone_number
 
-    @field_validator("password")
+    @validator("password")
     def validate_password(cls, password):
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long.")

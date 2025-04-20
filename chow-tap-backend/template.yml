@@ -62,3 +62,13 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "signup"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
+  ForgotPasswordService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/forgot-password/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "forgot-password"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

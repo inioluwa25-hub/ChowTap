@@ -7,7 +7,7 @@ from os import getenv
 import boto3
 from aws_lambda_powertools.utilities import parameters
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from utils import logger, make_response, handle_exceptions
 
 
@@ -26,6 +26,20 @@ client = boto3.client("cognito-idp")
 
 class PasswordSchema(BaseModel):
     email: EmailStr
+    code: str
+    password: str
+
+    @validator("password")
+    def validate_password(cls, password):
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters long.")
+        if not any(c.isupper() for c in password):
+            raise ValueError("Password must contain at least one capital letter.")
+        if not any(c.isdigit() for c in password):
+            raise ValueError("Password must contain at least one digit.")
+        if not any(c in "@$!%*?&-.,.#`~^()" for c in password):
+            raise ValueError("Password must contain at least one special character.")
+        return password
 
 
 def get_secret_hash_individual(username):
@@ -55,13 +69,17 @@ def main(event, context=None):
         payload = PasswordSchema(**body)
         logger.info(f"payload - {payload}")
         secret_hash = get_secret_hash_individual(payload.email)
-        client.forgot_password(
-            ClientId=CLIENT_ID, SecretHash=secret_hash, Username=payload.email
+        client.confirm_forgot_password(
+            ClientId=CLIENT_ID,
+            SecretHash=secret_hash,
+            Username=payload.email,
+            ConfirmationCode=payload.code,
+            Password=payload.password,
         )
         status_code = 200
         response["error"] = False
         response["success"] = True
-        response["message"] = "code sent successful"
+        response["message"] = "password reset successful"
     except ValueError as e:
         logger.error(e)
         response["message"] = e.messages

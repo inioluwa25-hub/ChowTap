@@ -13,6 +13,8 @@ Parameters:
     Type: String
   ForgotPasswordFunctionArn:
     Type: String
+  ConfirmForgotPasswordFunctionArn:
+    Type: String
 
 Resources:
   ForgotPasswordApi:
@@ -69,11 +71,58 @@ Resources:
                     responseTemplates:
                       application/json: "{}"
 
+          /confirm-forgot-password:
+            post:
+              x-amazon-apigateway-integration:
+                credentials: !Ref ForgotPasswordApiGatewayRoleArn
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConfirmForgotPasswordFunctionArn}/invocations"
+              responses:
+                '200':
+                  description: Successful
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+            options:
+              responses:
+                "200":
+                  description: "CORS response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
   ForgotPasswordApiPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref ForgotPasswordFunctionArn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ForgotPasswordApi}/${Stage}/*/*"
+
+  ConfirmForgotPasswordApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ConfirmForgotPasswordFunctionArn
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ForgotPasswordApi}/${Stage}/*/*"
 
@@ -83,4 +132,10 @@ Outputs:
     Value: !Sub "https://${ForgotPasswordApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/forgot-password"
   ForgotPasswordApiId:
     Description: "Forgot Password API ID"
+    Value: !Ref ForgotPasswordApi
+  ConfirmForgotPasswordApiUrl:
+    Description: "Confirm Forgot Password API endpoint URL"
+    Value: !Sub "https://${ForgotPasswordApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/confirm-forgot-password"
+  ConfirmForgotPasswordApiId:
+    Description: "Confirm Forgot Password API ID"
     Value: !Ref ForgotPasswordApi

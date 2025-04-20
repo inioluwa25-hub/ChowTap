@@ -56,6 +56,9 @@ Resources:
                   - cognito-idp:InitiateAuth
                   - cognito-idp:AdminGetUser
                   - cognito-idp:RespondToAuthChallenge
+                  - cognito-idp:ConfirmForgotPassword
+                  - cognito-idp:ForgotPassword
+                  - cognito-idp:ChangePassword
                 Resource: "*"
               
               # SSM Parameter Store permissions
@@ -113,6 +116,7 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: 
                   - !GetAtt ForgotPasswordFunction.Arn
+                  - !GetAtt ConfirmForgotPasswordFunction.Arn
 
   ForgotPasswordFunction:
     Type: AWS::Serverless::Function
@@ -127,6 +131,21 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${ForgotPasswordFunction}"
+      RetentionInDays: 14
+
+  ConfirmForgotPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-confirm-forgot-password-function"
+      Handler: main.handler
+      CodeUri: ./src/confirm-forgot-password/
+      Role: !GetAtt ForgotPasswordServiceRole.Arn
+      Description: A simple Lambda function for confirming forgot password.
+
+  ConfirmForgotPasswordFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ConfirmForgotPasswordFunction}"
       RetentionInDays: 14
 
   PythonRequirementsLayer:
@@ -160,8 +179,12 @@ Resources:
         ServiceName: !Ref ServiceName
         ForgotPasswordApiGatewayRoleArn: !GetAtt ForgotPasswordApiGatewayRole.Arn
         ForgotPasswordFunctionArn: !GetAtt ForgotPasswordFunction.Arn
+        ConfirmForgotPasswordFunctionArn: !GetAtt ConfirmForgotPasswordFunction.Arn
 
 Outputs:
   ForgotPasswordFunctionArn:
     Description: "Forgot Password Function ARN"
     Value: !GetAtt ForgotPasswordFunction.Arn
+  ConfirmForgotPasswordFunctionArn:
+    Description: "Confirm Forgot Password Function ARN"
+    Value: !GetAtt ConfirmForgotPasswordFunction.Arn

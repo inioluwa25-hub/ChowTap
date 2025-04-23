@@ -105,24 +105,43 @@ def main(event, context=None):
             {"Name": "email", "Value": payload.email},
             {"Name": "given_name", "Value": payload.first_name},
             {"Name": "family_name", "Value": payload.last_name},
+            {"Name": "phone_number", "Value": e164_phone},
         ]
 
-        if payload.phone_number:
-            e164_phone = "+234" + payload.phone_number[1:]
-            user_attr.append({"Name": "phone_number", "Value": e164_phone})
-
+        # Standard sign up - will trigger email verification by default
         client.sign_up(
             ClientId=CLIENT_ID,
             SecretHash=get_secret_hash_individual(payload.email),
             Username=payload.email,
             Password=payload.password,
             UserAttributes=user_attr,
+            ValidationData=[{"Name": "email", "Value": payload.email}],
         )
+
+        # After sign-up, immediately mark email as verified and phone as unverified
+        client.admin_update_user_attributes(
+            UserPoolId=POOL_ID,
+            Username=payload.email,
+            UserAttributes=[
+                {"Name": "email_verified", "Value": "true"},
+                {"Name": "phone_number_verified", "Value": "false"},
+            ],
+        )
+
+        # Manually create and send verification code to phone
+        response_code = client.admin_create_user_verification_code(
+            UserPoolId=POOL_ID, Username=payload.email, AttributeName="phone_number"
+        )
+
+        logger.info(f"Phone verification initiated: {response_code}")
 
         status_code = 200
         response["error"] = False
         response["success"] = True
-        response["message"] = "please confirm signup"
+        response["message"] = (
+            "Please verify your phone number with the code sent via SMS"
+        )
+
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)
         response_string = str(e)
@@ -138,9 +157,6 @@ def main(event, context=None):
         response_string = str(e)
         response["message"] = response_string.split(":", 1)[-1].strip()
     except client.exceptions.InvalidParameterException as e:
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.UsernameExistsException as e:
         response_string = str(e)
         response["message"] = response_string.split(":", 1)[-1].strip()
     except ValueError as e:

@@ -53,9 +53,13 @@ Resources:
               # Cognito permissions
               - Effect: Allow
                 Action:
+                  - cognito-idp:SignUp
+                  - cognito-idp:AdminConfirmSignUp
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminUserGlobalSignOut
+                  - cognito-idp:AdminInitiateAuth
+                  - cognito-idp:GetUserAttributeVerificationCode
                   - cognito-idp:InitiateAuth
-                  - cognito-idp:AdminGetUser
-                  - cognito-idp:RespondToAuthChallenge
                 Resource: "*"
               
               - Effect: Allow

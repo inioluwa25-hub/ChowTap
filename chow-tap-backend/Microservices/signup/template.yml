@@ -60,6 +60,7 @@ Resources:
                   - cognito-idp:AdminInitiateAuth
                   - cognito-idp:GetUserAttributeVerificationCode
                   - cognito-idp:InitiateAuth
+                  - cognito-idp:AdminGetUser
                 Resource: "*"
               
               - Effect: Allow

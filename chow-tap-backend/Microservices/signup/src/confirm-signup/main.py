@@ -30,7 +30,7 @@ client = boto3.client("cognito-idp")
 
 
 class ConfirmsignupSchema(BaseModel):
-    phone_number: str
+    email: EmailStr
     code: str
 
 

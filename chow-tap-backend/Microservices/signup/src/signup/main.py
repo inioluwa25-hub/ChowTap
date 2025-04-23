@@ -57,12 +57,6 @@ class SignupSchema(BaseModel):
 def get_secret_hash_individual(username: str) -> str:
     """
     Generate the secret hash using the username and Cognito client credentials.
-
-    Args:
-        username (str): The username for the user.
-
-    Returns:
-        str: The secret hash for the user.
     """
     msg = username + CLIENT_ID
     dig = hmac.new(
@@ -77,15 +71,6 @@ def get_secret_hash_individual(username: str) -> str:
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
-    """
-    Authenticate a user and generate tokens using AWS Cognito.
-
-    Args:
-        event (dict): Event data including user input and headers.
-
-    Returns:
-        dict: A response containing authentication tokens or error messages.
-    """
     status_code = 400
     response = {
         "error": True,
@@ -99,8 +84,10 @@ def main(event, context=None):
         body = json.loads(event["body"])
         payload = SignupSchema(**body)
         logger.info(f"payload - {payload}")
+
         # Convert to E.164 format for Cognito
         e164_phone = "+234" + payload.phone_number[1:]  # Replace leading 0 with +234
+
         user_attr = [
             {"Name": "email", "Value": payload.email},
             {"Name": "given_name", "Value": payload.first_name},
@@ -108,19 +95,24 @@ def main(event, context=None):
             {"Name": "phone_number", "Value": e164_phone},
         ]
 
-        client.sign_up(
+        # Sign up the user with phone number as the verified attribute
+        response = client.sign_up(
             ClientId=CLIENT_ID,
             SecretHash=get_secret_hash_individual(payload.email),
             Username=payload.email,
             Password=payload.password,
             UserAttributes=user_attr,
-            ValidationData=[{"Name": "email", "Value": payload.email}],
+            ValidationData=[{"Name": "phone_number", "Value": e164_phone}],
         )
+
+        # After signup, update user attributes to mark phone as verified (if needed)
+        # Note: This might require admin privileges or a custom lambda trigger
 
         status_code = 200
         response["error"] = False
         response["success"] = True
-        response["message"] = "please confirm signup"
+        response["message"] = "OTP sent to your phone number for verification"
+
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)
         response_string = str(e)
@@ -131,14 +123,7 @@ def main(event, context=None):
     except client.exceptions.UserLambdaValidationException as e:
         response_string = str(e)
         response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.UserNotConfirmedException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
     except client.exceptions.InvalidParameterException as e:
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.UsernameExistsException as e:
         response_string = str(e)
         response["message"] = response_string.split(":", 1)[-1].strip()
     except ValueError as e:
@@ -147,11 +132,10 @@ def main(event, context=None):
         for field, errors in e.messages.items():
             error_message[field] = errors[0]
         response["message"] = error_message
-    except KeyError:
-        traceback.print_exc()
     except Exception as e:
         status_code = 500
         logger.error(e)
+        response["message"] = str(e)
     return make_response(status_code, response)
 
 

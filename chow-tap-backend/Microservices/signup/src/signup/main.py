@@ -111,36 +111,16 @@ def main(event, context=None):
         # Standard sign up - will trigger email verification by default
         client.sign_up(
             ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash_individual(payload.email),
-            Username=payload.email,
+            SecretHash=get_secret_hash_individual(payload.phone_number),
+            Username=payload.phone_number,
             Password=payload.password,
             UserAttributes=user_attr,
-            ValidationData=[{"Name": "email", "Value": payload.email}],
+            ValidationData=[{"Name": "phone_number", "Value": payload.phone_number}],
         )
-
-        # After sign-up, immediately mark email as verified and phone as unverified
-        client.admin_update_user_attributes(
-            UserPoolId=POOL_ID,
-            Username=payload.email,
-            UserAttributes=[
-                {"Name": "email_verified", "Value": "true"},
-                {"Name": "phone_number_verified", "Value": "false"},
-            ],
-        )
-
-        # Manually create and send verification code to phone
-        response_code = client.admin_create_user_verification_code(
-            UserPoolId=POOL_ID, Username=payload.email, AttributeName="phone_number"
-        )
-
-        logger.info(f"Phone verification initiated: {response_code}")
-
         status_code = 200
         response["error"] = False
         response["success"] = True
-        response["message"] = (
-            "Please verify your phone number with the code sent via SMS"
-        )
+        response["message"] = "Confirm sign up"
 
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)

@@ -30,7 +30,7 @@ client = boto3.client("cognito-idp")
 
 
 class ConfirmsignupSchema(BaseModel):
-    email: EmailStr
+    phone_number: str
     code: str
 
 
@@ -72,12 +72,12 @@ def main(event, context=None):
         logger.info(f"payload - {payload}")
         client.confirm_sign_up(
             ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash(payload.email, CLIENT_ID, CLIENT_SECRET),
-            Username=payload.email,
+            SecretHash=get_secret_hash(payload.phone_number, CLIENT_ID, CLIENT_SECRET),
+            Username=payload.phone_number,
             ConfirmationCode=payload.code,
             ForceAliasCreation=False,
         )
-        user_data = admin_get_user(client, POOL_ID, payload.email)
+        user_data = admin_get_user(client, POOL_ID, payload.phone_number)
         customer = {"pk": "user", "sk": f"user_{user_data['sub']}"}
 
         # Defination of user's permissions

@@ -72,12 +72,12 @@ def main(event, context=None):
         logger.info(f"payload - {payload}")
         client.confirm_sign_up(
             ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash(payload.phone_number, CLIENT_ID, CLIENT_SECRET),
-            Username=payload.phone_number,
+            SecretHash=get_secret_hash(payload.email, CLIENT_ID, CLIENT_SECRET),
+            Username=payload.email,
             ConfirmationCode=payload.code,
             ForceAliasCreation=False,
         )
-        user_data = admin_get_user(client, POOL_ID, payload.phone_number)
+        user_data = admin_get_user(client, POOL_ID, payload.email)
         customer = {"pk": "user", "sk": f"user_{user_data['sub']}"}
 
         # Defination of user's permissions

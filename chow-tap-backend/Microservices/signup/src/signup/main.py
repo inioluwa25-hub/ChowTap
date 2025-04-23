@@ -77,15 +77,6 @@ def get_secret_hash_individual(username: str) -> str:
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
-    """
-    Authenticate a user and generate tokens using AWS Cognito.
-
-    Args:
-        event (dict): Event data including user input and headers.
-
-    Returns:
-        dict: A response containing authentication tokens or error messages.
-    """
     status_code = 400
     response = {
         "error": True,
@@ -99,8 +90,10 @@ def main(event, context=None):
         body = json.loads(event["body"])
         payload = SignupSchema(**body)
         logger.info(f"payload - {payload}")
+
         # Convert to E.164 format for Cognito
         e164_phone = "+234" + payload.phone_number[1:]  # Replace leading 0 with +234
+
         user_attr = [
             {"Name": "email", "Value": payload.email},
             {"Name": "given_name", "Value": payload.first_name},
@@ -108,24 +101,29 @@ def main(event, context=None):
             {"Name": "phone_number", "Value": e164_phone},
         ]
 
-        # Standard sign up - will trigger email verification by default
         client.sign_up(
             ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash_individual(payload.phone_number),
-            Username=payload.phone_number,
+            SecretHash=get_secret_hash_individual(payload.email),
+            Username=payload.email,
             Password=payload.password,
             UserAttributes=user_attr,
-            ValidationData=[{"Name": "phone_number", "Value": payload.phone_number}],
+            ValidationData=[{"Name": "email", "Value": payload.email}],
         )
         status_code = 200
         response["error"] = False
         response["success"] = True
-        response["message"] = "Confirm sign up"
+        response["message"] = "please confirm signup"
 
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
+        response["message"] = "User with this phone number already exists"
+    except client.exceptions.InvalidParameterException as e:
+        if "Username should be an email" in str(e):
+            response["message"] = (
+                "Server configuration error: Phone number as username not enabled"
+            )
+        else:
+            response["message"] = str(e).split(":", 1)[-1].strip()
     except client.exceptions.InvalidPasswordException as e:
         response_string = str(e)
         response["message"] = response_string.split(":", 1)[-1].strip()

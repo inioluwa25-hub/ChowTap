@@ -58,6 +58,11 @@ Resources:
                   - cognito-idp:RespondToAuthChallenge
                 Resource: "*"
               
+              - Effect: Allow
+                Action: 
+                  - sns:Publish
+                Resource: "*"
+
               # SSM Parameter Store permissions
               - Effect: Allow
                 Action:

@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for USers
+
+Parameters:
+  AppName:
+    Type: String
+  Stage:
+    Type: String
+  ServiceName:
+    Type: String
+  AwsLambdaPowertoolsPythonLayer:
+    Type: String
+    
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Layers:
+      - !Ref PythonRequirementsLayer
+      - !Ref UtilsLayer
+      - !Ref AwsLambdaPowertoolsPythonLayer
+    Runtime: python3.10
+    Tracing: Active
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        APP_NAME: !Ref AppName
+        STAGE: !Ref Stage
+
+Resources:
+  UserServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-user-role"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-user-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Cognito permissions
+              - Effect: Allow
+                Action:
+                  - cognito-idp:InitiateAuth
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:ListUsers
+                  - cognito-idp:RespondToAuthChallenge
+                Resource: "*"
+              
+              # SSM Parameter Store permissions
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+              
+              # KMS permissions
+              - Effect: Allow 
+                Action:
+                  - kms:Decrypt
+                Resource: "*"
+              
+              # DynamoDB permissions - Specific to your main table
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"
+
+  UserApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-role"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: 
+                  - !GetAtt GetUserFunction.Arn
+                  - !GetAtt ListAllUserFunction.Arn
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-user-function"
+      Handler: main.handler
+      CodeUri: ./src/get-user/
+      Role: !GetAtt UserServiceRole.Arn
+      Description: A simple Lambda function for getting user.
+
+  GetUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetUserFunction}"
+      RetentionInDays: 14
+
+  ListAllUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-all-users-function"
+      Handler: main.handler
+      CodeUri: ./src/list-all-users/
+      Role: !GetAtt UserServiceRole.Arn
+      Description: A simple Lambda function for listing all users.
+
+  ListAllUsersFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListAllUsersFunction}"
+      RetentionInDays: 14
+
+  PythonRequirementsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-python-requirements"
+      Description: Dependencies for the auth service Lambda function
+      ContentUri: dependencies/requirements/
+      CompatibleRuntimes:
+        - python3.9
+      LicenseInfo: MIT
+    Metadata:
+      BuildMethod: python3.10
+
+  UtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-utils-layer"
+      Description: Utility functions for Lambda
+      ContentUri: ./dependencies/utils/
+    Metadata:
+      BuildMethod: python3.10
+
+  UserApiGateway:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: api.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: !Ref ServiceName
+        UserApiGatewayRoleArn: !GetAtt UserApiGatewayRole.Arn
+        GetUserFunctionArn: !GetAtt GetUserFunction.Arn
+        ListAllUsersFunctionArn: !GetAtt ListAllUsersFunction.Arn
+
+Outputs:
+  GetUserFunctionArn:
+    Description: "Get User Function ARN"
+    Value: !GetAtt GetUserFunction.Arn
+  ListAllUsersFunctionArn:
+    Description: "List All Users Function ARN"
+    Value: !GetAtt ListAllUsersFunction.Arn

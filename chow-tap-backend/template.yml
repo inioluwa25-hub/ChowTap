@@ -72,3 +72,13 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "forgot-password"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
+  UserService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/user/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "user"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

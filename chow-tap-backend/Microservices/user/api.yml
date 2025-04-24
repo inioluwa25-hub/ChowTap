@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: User API requirements
+
+Parameters:
+  AppName:
+    Type: String
+  ServiceName:
+    Type: String
+  Stage:
+    Type: String
+  UserApiGatewayRoleArn:
+    Type: String
+  GetUserFunctionArn:
+    Type: String
+  ListAllUsersFunctionArn:
+    Type: String
+
+Resources:
+  UserApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-user-api"
+      TracingEnabled: true
+      EndpointConfiguration: REGIONAL
+      DefinitionBody:
+        openapi: 3.0.3
+        info:
+          version: 1.0.0
+          title: !Sub "${AppName}-${Stage}-${ServiceName}-user-api"
+          description: Public user API
+
+        paths:
+          /get-user:
+            get:
+              x-amazon-apigateway-integration:
+                credentials: !Ref UserApiGatewayRoleArn
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetUserFunctionArn}/invocations"
+              responses:
+                '200':
+                  description: Successful getting user
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+            options:
+              responses:
+                "200":
+                  description: "CORS response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /list-all-users:
+            get:
+              x-amazon-apigateway-integration:
+                credentials: !Ref UserApiGatewayRoleArn
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ListAllUsersFunctionArn}/invocations"
+              responses:
+                '200':
+                  description: Successful getting user
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+            options:
+              responses:
+                "200":
+                  description: "CORS response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+  GetUserApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetUserFunctionArn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${UserApi}/${Stage}/*/*"
+
+  ListAllUsersApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ListAllUsersFunctionArn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${UserApi}/${Stage}/*/*"
+
+Outputs:
+  GetUserApiUrl:
+    Description: "Get User API endpoint URL"
+    Value: !Sub "https://${UserApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/get-user"
+  GetUserApiId:
+    Description: "Get User API ID"
+    Value: !Ref UserApi
+  ListAllUsersApiUrl:
+    Description: "List All Users API endpoint URL"
+    Value: !Sub "https://${UserApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/list-all-users"
+  ListAllUsersApiId:
+    Description: "List All Users API ID"
+    Value: !Ref UserApi

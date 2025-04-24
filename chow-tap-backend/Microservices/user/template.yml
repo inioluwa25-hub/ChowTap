@@ -149,6 +149,8 @@ Resources:
             Path: /list-all-users
             Method: GET
             RestApiId: !Ref UserApi
+            Auth:
+              Authorizer: NONE
 
   UserApi:
     Type: AWS::Serverless::Api

@@ -11,6 +11,12 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
+  CognitoUserPoolId:
+    Type: String
+    Description: ID of the Cognito User Pool
+  CognitoAppClientId:
+    Type: String
+    Description: ID of the Cognito App Client
     
 Globals:
   Function:
@@ -155,18 +161,15 @@ Resources:
   UserApi:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: !Ref Stage
-      Name: !Sub "${AppName}-${Stage}-${ServiceName}-user-api"
-      TracingEnabled: true
-      EndpointConfiguration: REGIONAL
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/us-east-1_N69lOUMSh 
+            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
             AuthorizationScopes:
               - "email"
               - "openid"
+              - "profile"
             Identity:
               Header: "Authorization"
               ReauthorizeEvery: 300

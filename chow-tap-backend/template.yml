@@ -81,4 +81,6 @@ Resources:
         AppName: !Ref AppName
         Stage: !Ref Stage
         ServiceName: "user"
+        CognitoUserPoolId: "{{resolve:ssm:/chow-tap/prod/POOL_ID}}"
+        CognitoAppClientId: "{{resolve:ssm:/chow-tap/prod/CLIENT_ID}}"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

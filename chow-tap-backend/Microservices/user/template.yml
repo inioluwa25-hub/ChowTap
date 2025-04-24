@@ -11,13 +11,7 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-  CognitoUserPoolId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /chow-tap/prod/POOL_ID
-  CognitoAppClientId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /chow-tap/prod/CLIENT_ID
-
+    
 Globals:
   Function:
     Timeout: 300
@@ -161,18 +155,17 @@ Resources:
   UserApi:
     Type: AWS::Serverless::Api
     Properties:
+      StageName: !Ref Stage
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-user-api"
+      TracingEnabled: true
+      EndpointConfiguration: REGIONAL
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}"
-            AuthorizationScopes:
-              - "email"
-              - "openid"
-              - "profile"
+            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}
             Identity:
               Header: "Authorization"
-              ReauthorizeEvery: 300
       Cors:
         AllowMethods: "'GET,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"

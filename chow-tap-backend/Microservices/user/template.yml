@@ -11,12 +11,6 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-  UserPoolId:
-    Type: String
-    Description: ARN of the Cognito User Pool
-  AppClientId:
-    Type: String
-    Description: Cognito App Client ID
     
 Globals:
   Function:
@@ -169,7 +163,7 @@ Resources:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:
           CognitoAuthorizer:
-            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId} 
+            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/us-east-1_N69lOUMSh 
             AuthorizationScopes:
               - "email"
               - "openid"

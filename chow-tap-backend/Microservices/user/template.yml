@@ -12,12 +12,12 @@ Parameters:
   AwsLambdaPowertoolsPythonLayer:
     Type: String
   CognitoUserPoolId:
-    Type: String
-    Description: ID of the Cognito User Pool
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /chow-tap/prod/POOL_ID
   CognitoAppClientId:
-    Type: String
-    Description: ID of the Cognito App Client
-    
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /chow-tap/prod/CLIENT_ID
+
 Globals:
   Function:
     Timeout: 300

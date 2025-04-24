@@ -12,12 +12,6 @@ Parameters:
     AllowedValues:
       - staging
       - prod
-  CognitoUserPoolId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /chow-tap/prod/POOL_ID
-  CognitoAppClientId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /chow-tap/prod/CLIENT_ID
 
 Resources:
   MainTable:
@@ -87,6 +81,4 @@ Resources:
         AppName: !Ref AppName
         Stage: !Ref Stage
         ServiceName: "user"
-        CognitoUserPoolId: !Ref CognitoUserPoolId
-        CognitoAppClientId: !Ref CognitoAppClientId
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

@@ -114,7 +114,7 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: 
                   - !GetAtt GetUserFunction.Arn
-                  - !GetAtt ListAllUserFunction.Arn
+                  - !GetAtt ListAllUsersFunction.Arn
 
   GetUserFunction:
     Type: AWS::Serverless::Function

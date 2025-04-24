@@ -15,8 +15,8 @@ default:
       s3_prefix: "chow-tap-staging"
       parameter_overrides: >
         Stage=staging
-        UserPoolId={{resolve:ssm:/chow-tap/prod/POOL_ID}}
-        AppClientId={{resolve:ssm:/chow-tap/prod/CLIENT_ID}}
+        UserPoolId=us-east-1_N69lOUMSh
+        AppClientId=18et6apv77lom9ka7ugthcpndq
 
 # Production environment
 prod:
@@ -33,5 +33,5 @@ prod:
       s3_prefix: "chow-tap-prod"
       parameter_overrides: >
         Stage=prod
-        UserPoolId={{resolve:ssm:/chow-tap/prod/POOL_ID}}
-        AppClientId={{resolve:ssm:/chow-tap/prod/CLIENT_ID}}
+        UserPoolId=us-east-1_N69lOUMSh
+        AppClientId=18et6apv77lom9ka7ugthcpndq

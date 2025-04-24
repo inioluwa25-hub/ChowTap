@@ -82,3 +82,4 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "user"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+        LambdaAuthFunctionArn: !GetAtt LoginService.Outputs.LoginFunctionArn

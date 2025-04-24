@@ -15,6 +15,8 @@ Parameters:
     Type: String
   ListAllUsersFunctionArn:
     Type: String
+  LambdaAuthFunctionArn:
+    Type: String
 
 Resources:
   UserApi:
@@ -31,9 +33,25 @@ Resources:
           title: !Sub "${AppName}-${Stage}-${ServiceName}-user-api"
           description: Public user API
 
+        components:
+          securitySchemes:
+            Authorizer:
+              type: apiKey
+              name: Authorization
+              in: header
+              x-amazon-apigateway-authtype: custom
+              x-amazon-apigateway-authorizer:
+                authorizerResultTtlInSeconds: 300
+                type: token
+                identitySource: method.request.header.Authorization
+                authorizerUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaAuthFunctionArn}/invocations
+                authorizerCredentials: !Ref UserApiGatewayRoleArn
+
         paths:
           /get-user:
             get:
+              security:
+                - Authorizer: []
               x-amazon-apigateway-integration:
                 credentials: !Ref UserApiGatewayRoleArn
                 httpMethod: POST
@@ -73,6 +91,8 @@ Resources:
 
           /list-all-users:
             get:
+              security:
+                - Authorizer: []
               x-amazon-apigateway-integration:
                 credentials: !Ref UserApiGatewayRoleArn
                 httpMethod: POST

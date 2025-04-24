@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS SAM template for USers
+Description: AWS SAM template for Users with Cognito Authorizer
 
 Parameters:
   AppName:
@@ -11,8 +11,12 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-  LambdaAuthFunctionArn:
+  UserPoolId:
     Type: String
+    Description: ARN of the Cognito User Pool
+  AppClientId:
+    Type: String
+    Description: Cognito App Client ID
     
 Globals:
   Function:
@@ -76,7 +80,7 @@ Resources:
                   - kms:Decrypt
                 Resource: "*"
               
-              # DynamoDB permissions - Specific to your main table
+              # DynamoDB permissions
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -117,7 +121,6 @@ Resources:
                 Resource: 
                   - !GetAtt GetUserFunction.Arn
                   - !GetAtt ListAllUsersFunction.Arn
-                  - !Ref LambdaAuthFunctionArn
 
   GetUserFunction:
     Type: AWS::Serverless::Function
@@ -126,13 +129,16 @@ Resources:
       Handler: main.handler
       CodeUri: ./src/get-user/
       Role: !GetAtt UserServiceRole.Arn
-      Description: A simple Lambda function for getting user.
-
-  GetUserFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${GetUserFunction}"
-      RetentionInDays: 14
+      Description: Gets user details from Cognito
+      Events:
+        GetUser:
+          Type: Api
+          Properties:
+            Path: /get-user
+            Method: GET
+            RestApiId: !Ref UserApi
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   ListAllUsersFunction:
     Type: AWS::Serverless::Function
@@ -141,13 +147,39 @@ Resources:
       Handler: main.handler
       CodeUri: ./src/list-all-users/
       Role: !GetAtt UserServiceRole.Arn
-      Description: A simple Lambda function for listing all users.
+      Description: Lists all users in Cognito
+      Events:
+        ListAllUsers:
+          Type: Api
+          Properties:
+            Path: /list-all-users
+            Method: GET
+            RestApiId: !Ref UserApi
+            Auth:
+              Authorizer: CognitoAuthorizer
 
-  ListAllUsersFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
+  UserApi:
+    Type: AWS::Serverless::Api
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${ListAllUsersFunction}"
-      RetentionInDays: 14
+      StageName: !Ref Stage
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-user-api"
+      TracingEnabled: true
+      EndpointConfiguration: REGIONAL
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId} 
+            AuthorizationScopes:
+              - "email"
+              - "openid"
+            Identity:
+              Header: "Authorization"
+              ReauthorizeEvery: 300
+      Cors:
+        AllowMethods: "'GET,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+        AllowOrigin: "'*'"
 
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion
@@ -170,18 +202,17 @@ Resources:
     Metadata:
       BuildMethod: python3.10
 
-  UserApiGateway:
-    Type: AWS::Serverless::Application
+  GetUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      Location: api.yml
-      Parameters:
-        AppName: !Ref AppName
-        Stage: !Ref Stage
-        ServiceName: !Ref ServiceName
-        UserApiGatewayRoleArn: !GetAtt UserApiGatewayRole.Arn
-        GetUserFunctionArn: !GetAtt GetUserFunction.Arn
-        ListAllUsersFunctionArn: !GetAtt ListAllUsersFunction.Arn
-        LambdaAuthFunctionArn: !Ref LambdaAuthFunctionArn
+      LogGroupName: !Sub "/aws/lambda/${GetUserFunction}"
+      RetentionInDays: 14
+
+  ListAllUsersFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListAllUsersFunction}"
+      RetentionInDays: 14
 
 Outputs:
   GetUserFunctionArn:
@@ -190,3 +221,6 @@ Outputs:
   ListAllUsersFunctionArn:
     Description: "List All Users Function ARN"
     Value: !GetAtt ListAllUsersFunction.Arn
+  UserApiEndpoint:
+    Description: "User API Endpoint URL"
+    Value: !Sub "https://${UserApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

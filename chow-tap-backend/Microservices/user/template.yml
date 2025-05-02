@@ -55,6 +55,7 @@ Resources:
                 Action:
                   - cognito-idp:InitiateAuth
                   - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminUpdateUserAttributes
                   - cognito-idp:ListUsers
                   - cognito-idp:RespondToAuthChallenge
                 Resource: "*"
@@ -114,6 +115,7 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: 
                   - !GetAtt GetUserFunction.Arn
+                  - !GetAtt UpdateUserFunction.Arn
                   - !GetAtt ListAllUsersFunction.Arn
 
   GetUserFunction:
@@ -130,6 +132,24 @@ Resources:
           Properties:
             Path: /get-user
             Method: GET
+            RestApiId: !Ref UserApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-update-user-function"
+      Handler: main.handler
+      CodeUri: ./src/update-user/
+      Role: !GetAtt UserServiceRole.Arn
+      Description: Updates user details from Cognito
+      Events:
+        UpdateUser:
+          Type: Api
+          Properties:
+            Path: /update-user
+            Method: POST
             RestApiId: !Ref UserApi
             Auth:
               Authorizer: CognitoAuthorizer
@@ -198,6 +218,12 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${GetUserFunction}"
       RetentionInDays: 14
 
+  UpdateUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${UpdateUserFunction}"
+      RetentionInDays: 14
+
   ListAllUsersFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -208,6 +234,9 @@ Outputs:
   GetUserFunctionArn:
     Description: "Get User Function ARN"
     Value: !GetAtt GetUserFunction.Arn
+  UpdateUserFunctionArn:
+    Description: "Update User Function ARN"
+    Value: !GetAtt UpdateUserFunction.Arn
   ListAllUsersFunctionArn:
     Description: "List All Users Function ARN"
     Value: !GetAtt ListAllUsersFunction.Arn

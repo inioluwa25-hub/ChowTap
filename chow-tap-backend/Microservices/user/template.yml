@@ -58,6 +58,8 @@ Resources:
                   - cognito-idp:AdminUpdateUserAttributes
                   - cognito-idp:ListUsers
                   - cognito-idp:RespondToAuthChallenge
+                  - cognito-idp:AdminDeleteUserAttributes
+                  - cognito-idp:AdminDisableUser
                 Resource: "*"
               
               # SSM Parameter Store permissions
@@ -116,6 +118,7 @@ Resources:
                 Resource: 
                   - !GetAtt GetUserFunction.Arn
                   - !GetAtt UpdateUserFunction.Arn
+                  - !GetAtt DeleteUserFunction.Arn
                   - !GetAtt ListAllUsersFunction.Arn
 
   GetUserFunction:
@@ -149,6 +152,24 @@ Resources:
           Type: Api
           Properties:
             Path: /update-user
+            Method: POST
+            RestApiId: !Ref UserApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  DeleteUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-delete-user-function"
+      Handler: main.handler
+      CodeUri: ./src/delete-user/
+      Role: !GetAtt UserServiceRole.Arn
+      Description: Delete user details from Cognito
+      Events:
+        UpdateUser:
+          Type: Api
+          Properties:
+            Path: /delete-user
             Method: POST
             RestApiId: !Ref UserApi
             Auth:
@@ -224,6 +245,12 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${UpdateUserFunction}"
       RetentionInDays: 14
 
+  DeleteUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${DeleteUserFunction}"
+      RetentionInDays: 14
+
   ListAllUsersFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -237,6 +264,9 @@ Outputs:
   UpdateUserFunctionArn:
     Description: "Update User Function ARN"
     Value: !GetAtt UpdateUserFunction.Arn
+  DeleteUserFunctionArn:
+    Description: "Delete User Function ARN"
+    Value: !GetAtt DeleteUserFunction.Arn
   ListAllUsersFunctionArn:
     Description: "List All Users Function ARN"
     Value: !GetAtt ListAllUsersFunction.Arn

@@ -54,8 +54,15 @@ def admin_get_user(cognito_client, user_pool_id, username):
         response = cognito_client.admin_get_user(
             UserPoolId=user_pool_id, Username=username
         )
+        # Add check for UserAttributes in response
+        if "UserAttributes" not in response:
+            logger.error("No UserAttributes in response")
+            return {}
+
         data = {
-            attr.get("Name"): attr.get("Value") for attr in response["UserAttributes"]
+            attr.get("Name"): attr.get("Value")
+            for attr in response["UserAttributes"]
+            if attr.get("Name") and attr.get("Value")
         }
         return data
     except Exception as e:
@@ -94,22 +101,29 @@ def main(event, context=None):
     try:
         # Enhanced claims extraction
         request_context = event.get("requestContext", {})
-        authorizer = request_context.get("authorizer", {})
-        body = json.loads(event["body"])
-        payload = UserSchema(**body)
-        logger.info(f"payload - {payload}")
+        authorizer = request_context.get("authorizer") or {}
 
-        # Multiple possible claim locations
+        try:
+            body = json.loads(event.get("body", "{}") or "{}")
+        except json.JSONDecodeError:
+            body = {}
+        try:
+            payload = UserSchema(**body)
+            logger.info(f"payload - {payload}")
+        except Exception as e:
+            logger.error(f"Invalid payload: {str(e)}")
+            return make_response(
+                400, {"error": True, "success": False, "message": str(e), "data": None}
+            )
+
         claims = authorizer.get("claims") or authorizer
 
-        if not claims:
-            logger.error("No claims found in event")
+        if not isinstance(claims, dict) or not claims:
+            logger.error("No valid claims found in event")
             logger.info(f"Full event structure: {json.dumps(event, indent=2)}")
             status_code = 401
             response["message"] = "Unauthorized - No claims found"
             return make_response(status_code, response)
-
-        logger.info(f"Claims structure: {json.dumps(claims, indent=2)}")
 
         # Extract user_id from claims
         user_id = claims.get("sub") or claims.get("cognito:username")
@@ -128,7 +142,10 @@ def main(event, context=None):
             response["message"] = "Configuration error"
             return make_response(status_code, response)
 
-        e164_phone = "+234" + payload.phone_number[1:]
+        if payload.phone_number:
+            e164_phone = "+234" + payload.phone_number[1:]
+        else:
+            e164_phone = None
 
         # Update user data
         user_attr = []

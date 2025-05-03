@@ -86,8 +86,9 @@ def main(event, context=None):
             return make_response(status_code, response)
 
         if payload.delete:
-            client.admin_disable_user(UserPoolId=POOL_ID, Username=user_id)
-            response["message"] = "account disabled"
+            client.admin_delete_user(UserPoolId=POOL_ID, Username=user_id)
+            table.delete_item(Key={"pk": "user", "sk": f"user_{user_id}"})
+            response["message"] = "User account and data deleted successfully"
         else:
             response["message"] = "Invalid Request"
 

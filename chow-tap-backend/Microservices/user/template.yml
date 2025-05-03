@@ -58,7 +58,7 @@ Resources:
                   - cognito-idp:AdminUpdateUserAttributes
                   - cognito-idp:ListUsers
                   - cognito-idp:RespondToAuthChallenge
-                  - cognito-idp:AdminDeleteUserAttributes
+                  - cognito-idp:AdminDeleteUser
                   - cognito-idp:AdminDisableUser
                 Resource: "*"
               

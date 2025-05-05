@@ -138,22 +138,22 @@ Resources:
               Authorizer: CognitoAuthorizer
 
   GetVendorFunction:
-  Type: AWS::Serverless::Function
-  Properties:
-    FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-vendor-function"
-    Handler: main.handler
-    CodeUri: ./src/get-vendor/
-    Role: !GetAtt VendorServiceRole.Arn
-    Description: Get vendors on the application
-    Events:
-      GetVendor:
-        Type: Api
-        Properties:
-          Path: /get-vendor
-          Method: GET
-          RestApiId: !Ref VendorApi
-          Auth:
-            Authorizer: CognitoAuthorizer
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-vendor-function"
+      Handler: main.handler
+      CodeUri: ./src/get-vendor/
+      Role: !GetAtt VendorServiceRole.Arn
+      Description: Get vendors on the application
+      Events:
+        GetVendor:
+          Type: Api
+          Properties:
+            Path: /get-vendor
+            Method: GET
+            RestApiId: !Ref VendorApi
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   VendorApi:
     Type: AWS::Serverless::Api

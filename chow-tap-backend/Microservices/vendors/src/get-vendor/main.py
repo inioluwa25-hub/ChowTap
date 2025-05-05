@@ -1,10 +1,7 @@
 from os import getenv
 import json
-import re
 import boto3
-from time import time
 from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel, EmailStr, validator
 from utils import (
     make_response,
     handle_exceptions,
@@ -28,40 +25,6 @@ db = boto3.resource("dynamodb")
 table = db.Table("chow-tap-prod-main-table")
 
 
-class VendorSchema(BaseModel):
-    email: EmailStr
-    business_name: str
-    description: str
-    phone_number: str
-
-    @validator("phone_number")
-    def validate_phone_number(cls, phone_number):
-        # Validate Nigerian phone number format
-        if not re.match(r"^0[7-9][0-1]\d{8}$", phone_number):
-            raise ValueError(
-                "Phone number must be a valid Nigerian number (e.g., 07056463857)"
-            )
-        return phone_number
-
-
-def store_user_data(payload, user_id):
-    # Convert Pydantic model to dictionary
-    vendor_data = payload.dict()
-
-    # Add additional fields
-    vendor_data.update(
-        {
-            "pk": "Vendor",
-            "sk": f"Vendor#{user_id}",
-            "created_at": int(time()),
-            "updated_at": int(time()),
-        }
-    )
-
-    # Store in DynamoDB
-    table.put_item(Item=vendor_data)
-
-
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
@@ -77,19 +40,6 @@ def main(event, context=None):
         # Enhanced claims extraction
         request_context = event.get("requestContext", {})
         authorizer = request_context.get("authorizer") or {}
-
-        try:
-            body = json.loads(event.get("body", "{}") or "{}")
-        except json.JSONDecodeError:
-            body = {}
-        try:
-            payload = VendorSchema(**body)
-            logger.info(f"payload - {payload}")
-        except Exception as e:
-            logger.error(f"Invalid payload: {str(e)}")
-            return make_response(
-                400, {"error": True, "success": False, "message": str(e), "data": None}
-            )
 
         claims = authorizer.get("claims") or authorizer
 
@@ -108,11 +58,20 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        store_user_data(payload, user_id)
-        status_code = 200
-        response["error"] = False
-        response["success"] = True
-        response["message"] = "Created vendor successfully"
+        vendor = table.get_item(
+            Key={
+                "pk": "Vendor",
+                "sk": f"Vendor#{user_id}",
+            }
+        ).get("Item")
+        if vendor:
+            status_code = 200
+            response["message"] = "success"
+            response["error"], response["success"] = False, True
+            response["data"] = vendor
+        else:
+            status_code = 404
+            response["message"] = "host not found"
 
     except client.exceptions.NotAuthorizedException as e:
         logger.error(f"Not authorized: {str(e)}")

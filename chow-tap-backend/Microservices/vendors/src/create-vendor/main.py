@@ -1,8 +1,10 @@
 from os import getenv
 import json
+import re
 import boto3
+from time import time
 from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, validator
 from utils import (
     make_response,
     handle_exceptions,
@@ -15,6 +17,10 @@ APP_NAME = getenv("APP_NAME")
 
 # Fix the parameter store path to match SAM template
 POOL_ID = parameters.get_parameter(f"/chow-tap/{STAGE}/POOL_ID")
+CLIENT_ID = parameters.get_parameter(f"/{APP_NAME}/{STAGE}/CLIENT_ID")
+CLIENT_SECRET = parameters.get_parameter(
+    f"/{APP_NAME}/{STAGE}/CLIENT_SECRET", decrypt=True
+)
 
 # AWS client
 client = boto3.client("cognito-idp")
@@ -22,8 +28,33 @@ db = boto3.resource("dynamodb")
 table = db.Table("chow-tap-prod-main-table")
 
 
-class DeleteSchema(BaseModel):
-    delete: bool
+class VendorSchema(BaseModel):
+    email: EmailStr
+    business_name: str
+    description: str
+    phone_number: str
+
+    @validator("phone_number")
+    def validate_phone_number(cls, phone_number):
+        # Validate Nigerian phone number format
+        if not re.match(r"^0[7-9][0-1]\d{8}$", phone_number):
+            raise ValueError(
+                "Phone number must be a valid Nigerian number (e.g., 07056463857)"
+            )
+        return phone_number
+
+
+def store_user_data(payload, user_id):
+    sk = f"Vendor#{user_id}"
+    payload["pk"], payload["sk"] = "Vendor", sk
+    payload["created_at"], payload["updated_at"] = int(time()), int(time())
+    table.put_item(Item=payload)
+    # update cognito
+    client.admin_update_user_attributes(
+        UserAttributes=[{"Name": "custom:is_host", "Value": "True"}],
+        UserPoolId=POOL_ID,
+        Username=user_id,
+    )
 
 
 @logger.inject_lambda_context(log_event=True)
@@ -47,7 +78,7 @@ def main(event, context=None):
         except json.JSONDecodeError:
             body = {}
         try:
-            payload = DeleteSchema(**body)
+            payload = VendorSchema(**body)
             logger.info(f"payload - {payload}")
         except Exception as e:
             logger.error(f"Invalid payload: {str(e)}")
@@ -72,53 +103,21 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        # Get POOL_ID
-        try:
-            logger.info(f"Retrieved POOL_ID: {POOL_ID}")
-        except Exception as e:
-            logger.error(f"Failed to get POOL_ID: {str(e)}")
-            status_code = 500
-            response["message"] = "Configuration error"
-            return make_response(status_code, response)
-
-        if payload.delete:
-            client.admin_delete_user(UserPoolId=POOL_ID, Username=user_id)
-            table.delete_item(Key={"pk": "user", "sk": f"user_{user_id}"})
-            response["message"] = "User account and data deleted successfully"
-        else:
-            response["message"] = "Invalid Request"
-
+        store_user_data(payload, user_id)
         status_code = 200
         response["error"] = False
         response["success"] = True
+        response["message"] = "Created vendor successfully"
 
-    except client.exceptions.UserNotFoundException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.ResourceNotFoundException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.InvalidParameterException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
     except client.exceptions.NotAuthorizedException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.InternalErrorException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except ValueError as err:
-        logger.error(err)
-        response["message"] = err.messages
+        logger.error(f"Not authorized: {str(e)}")
+        status_code = 403
+        response["message"] = "Access denied"
     except Exception as e:
+        logger.error(f"Unexpected error: {type(e).__name__}: {str(e)}")
         status_code = 500
-        logger.error(e)
-        response["message"] = str(e)
+        response["message"] = "Internal server error"
+
     return make_response(status_code, response)
 
 

@@ -82,3 +82,13 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "user"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
+  VendorService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/vendors/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "vendor"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

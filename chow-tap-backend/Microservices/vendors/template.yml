@@ -118,6 +118,7 @@ Resources:
                 Resource: 
                   - !GetAtt CreateVendorFunction.Arn
                   - !GetAtt GetVendorFunction.Arn
+                  - !GetAtt ListVendorsFunction.Arn
 
   CreateVendorFunction:
     Type: AWS::Serverless::Function
@@ -154,6 +155,24 @@ Resources:
             RestApiId: !Ref VendorApi
             Auth:
               Authorizer: CognitoAuthorizer
+
+  ListVendorsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-vendor-function"
+      Handler: main.handler
+      CodeUri: ./src/list-vendor/
+      Role: !GetAtt VendorServiceRole.Arn
+      Description: List vendors on the application
+      Events:
+        GetVendor:
+          Type: Api
+          Properties:
+            Path: /list-vendors
+            Method: GET
+            RestApiId: !Ref VendorApi
+            Auth:
+              Authorizer: NONE
 
   VendorApi:
     Type: AWS::Serverless::Api
@@ -206,6 +225,12 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${GetVendorFunction}"
       RetentionInDays: 14
+  
+  ListVendorsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListVendorsFunction}"
+      RetentionInDays: 14
 
 Outputs:
   CreateVendorFunctionArn:
@@ -214,6 +239,9 @@ Outputs:
   GetVendorFunctionArn:
     Description: "Get Vendor Function ARN"
     Value: !GetAtt GetVendorFunction.Arn
+  ListVendorsFunctionArn:
+    Description: "List Vendors Function ARN"
+    Value: !GetAtt ListVendorsFunction.Arn
   VendorApiEndpoint:
     Description: "Vendor API Endpoint URL"
     Value: !Sub "https://${VendorApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

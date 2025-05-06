@@ -92,3 +92,13 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "vendor"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
+  ImageUploadService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/image-upload/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "image-upload"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

@@ -33,6 +33,7 @@ class VendorSchema(BaseModel):
     business_name: str
     description: str
     phone_number: str
+    logo: str
 
     @validator("phone_number")
     def validate_phone_number(cls, phone_number):
@@ -45,20 +46,31 @@ class VendorSchema(BaseModel):
 
 
 def store_user_data(payload, user_id):
+    # First check if vendor already exists
+    try:
+        existing = table.get_item(Key={"pk": "Vendor", "sk": f"Vendor#{user_id}"}).get(
+            "Item"
+        )
+
+        if existing:
+            raise ValueError("User already has a vendor profile")
+
+    except table.meta.client.exceptions.ClientError as e:
+        logger.error(f"DynamoDB error: {str(e)}")
+        raise
+
     # Convert Pydantic model to dictionary
     vendor_data = payload.dict()
-
-    # Add additional fields
     vendor_data.update(
         {
             "pk": "Vendor",
             "sk": f"Vendor#{user_id}",
             "created_at": int(time()),
             "updated_at": int(time()),
+            "user_id": user_id,  # Explicit user reference
         }
     )
 
-    # Store in DynamoDB
     table.put_item(Item=vendor_data)
 
 

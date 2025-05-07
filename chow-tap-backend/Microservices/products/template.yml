@@ -119,6 +119,7 @@ Resources:
                   - !GetAtt CreateProductFunction.Arn
                   - !GetAtt GetProductIdFunction.Arn
                   - !GetAtt ListProductsFunction.Arn
+                  - !GetAtt ListVendorProductsFunction.Arn
 
   CreateProductFunction:
     Type: AWS::Serverless::Function
@@ -152,6 +153,24 @@ Resources:
           Properties:
             Path: /get-product-id
             Method: POST
+            RestApiId: !Ref ProductApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  ListVendorProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-vendor-products-function"
+      Handler: main.handler
+      CodeUri: ./src/list-vendor-products/
+      Role: !GetAtt ProductServiceRole.Arn
+      Description: List vendor products on the application
+      Events:
+        ListVendorProducts:
+          Type: Api
+          Properties:
+            Path: /list-vendor-products
+            Method: GET
             RestApiId: !Ref ProductApi
             Auth:
               Authorizer: CognitoAuthorizer
@@ -232,6 +251,12 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${ListProductsFunction}"
       RetentionInDays: 14
 
+  ListVendorProductsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListVendorProductsFunction}"
+      RetentionInDays: 14
+
 Outputs:
   CreateProductFunctionArn:
     Description: "Create Product Function ARN"
@@ -242,6 +267,9 @@ Outputs:
   ListProductsFunctionArn:
     Description: "List Products Function ARN"
     Value: !GetAtt ListProductsFunction.Arn
+  ListVendorProductsFunctionArn:
+    Description: "List Vendor Products Function ARN"
+    Value: !GetAtt ListVendorProductsFunction.Arn
   ProductApiEndpoint:
     Description: "Product API Endpoint URL"
     Value: !Sub "https://${ProductApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

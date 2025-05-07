@@ -269,7 +269,7 @@ Outputs:
     Value: !GetAtt GetProductIdFunction.Arn
   ListProductsFunctionArn:
     Description: "List Products Function ARN"
-    Value: !GetAtt ListProductssFunction.Arn
+    Value: !GetAtt ListProductsFunction.Arn
   ProductApiEndpoint:
     Description: "Product API Endpoint URL"
     Value: !Sub "https://${ProductApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

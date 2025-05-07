@@ -1,0 +1,191 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for Residence on the application with Cognito Authorizer
+
+Parameters:
+  AppName:
+    Type: String
+  Stage:
+    Type: String
+  ServiceName:
+    Type: String
+  AwsLambdaPowertoolsPythonLayer:
+    Type: String
+    
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Layers:
+      - !Ref PythonRequirementsLayer
+      - !Ref UtilsLayer
+      - !Ref AwsLambdaPowertoolsPythonLayer
+    Runtime: python3.10
+    Tracing: Active
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        APP_NAME: !Ref AppName
+        STAGE: !Ref Stage
+
+Resources:
+  ResidenceServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-residence-role"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-residence-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Cognito permissions
+              - Effect: Allow
+                Action:
+                  - cognito-idp:InitiateAuth
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:ListUsers
+                  - cognito-idp:RespondToAuthChallenge
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminDisableUser
+                Resource: "*"
+              
+              # SSM Parameter Store permissions
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/POOL_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_ID"
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/chow-tap/${Stage}/CLIENT_SECRET"
+              
+              # KMS permissions
+              - Effect: Allow 
+                Action:
+                  - kms:Decrypt
+                Resource: "*"
+              
+              # DynamoDB permissions
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"
+
+  ResidenceApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-role"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: 
+                  - !GetAtt ListBuildingsFunction.Arn
+
+  ListBuildingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-buildings-function"
+      Handler: main.handler
+      CodeUri: ./src/list-buildings/
+      Role: !GetAtt ResidenceServiceRole.Arn
+      Description: List buildings on the application
+      Events:
+        ListBuildings:
+          Type: Api
+          Properties:
+            Path: /list-buildings
+            Method: GET
+            RestApiId: !Ref ResidenceApi
+            Auth:
+              Authorizer: NONE
+
+  ResidenceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-residence-api"
+      TracingEnabled: true
+      EndpointConfiguration: REGIONAL
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/us-east-1_N69lOUMSh
+            Identity:
+              Header: "Authorization"
+      Cors:
+        AllowMethods: "'GET,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+        AllowOrigin: "'*'"
+
+  PythonRequirementsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-python-requirements"
+      Description: Dependencies for the auth service Lambda function
+      ContentUri: dependencies/requirements/
+      CompatibleRuntimes:
+        - python3.9
+      LicenseInfo: MIT
+    Metadata:
+      BuildMethod: python3.10
+
+  UtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-utils-layer"
+      Description: Utility functions for Lambda
+      ContentUri: ./dependencies/utils/
+    Metadata:
+      BuildMethod: python3.10
+  
+  ListBuildingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListBuildingsFunction}"
+      RetentionInDays: 14
+
+Outputs:
+  ListBuildingsFunctionArn:
+    Description: "List Residence Function ARN"
+    Value: !GetAtt ListBuildingsFunction.Arn
+  ResidenceApiEndpoint:
+    Description: "Residence API Endpoint URL"
+    Value: !Sub "https://${ResidenceApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

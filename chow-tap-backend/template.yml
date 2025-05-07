@@ -102,3 +102,13 @@ Resources:
         Stage: !Ref Stage
         ServiceName: "image-upload"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
+  ResidenceService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/residence/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "residence"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn

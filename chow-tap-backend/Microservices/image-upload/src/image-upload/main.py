@@ -117,7 +117,7 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        file_contents = payload.get("contents", [])
+        file_contents = payload.contents or []
         markers = ":(.*?);"
         now = int(datetime.now().timestamp() * 1000)
         if not file_contents:
@@ -141,10 +141,11 @@ def main(event, context=None):
             file_content = str(file_content.split(",")[1])
             file_content = base64.b64decode(file_content)
             file_url = None
-            if not payload.get("folder"):
-                folder = f"vecul/{user_id}/images"
-            else:
-                folder = f"vecul/{user_id}/{payload.folder}"
+            folder = (
+                f"vecul/{user_id}/{payload.folder}"
+                if payload.folder
+                else f"vecul/{user_id}/images"
+            )
             domain = "https://d2nie45f5nhxu7.cloudfront.net"
             file_url = f"{domain}/{folder}/{file_name}"
             s3.put_object(
@@ -155,11 +156,11 @@ def main(event, context=None):
                 ACL="private",
             )
             urls.append(file_url)
-        if payload.get("folder") and payload.folder == "profile":
+        if payload.folder == FolderEnum.PROFILE.value:
             client.admin_update_user_attributes(
                 UserAttributes=[{"Name": "picture", "Value": urls[0]}],
                 UserPoolId=POOL_ID,
-                Username=claims["sub"],
+                Username=user_id,
             )
             update_ddb_record(user_id)
         status_code = 200

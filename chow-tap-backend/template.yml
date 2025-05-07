@@ -93,6 +93,16 @@ Resources:
         ServiceName: "vendor"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
 
+  ProductService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/products/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "products"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
   ImageUploadService:
     Type: AWS::Serverless::Application
     Properties:

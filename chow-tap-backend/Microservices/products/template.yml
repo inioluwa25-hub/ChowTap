@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS SAM template for Vendors on the application with Cognito Authorizer
+Description: AWS SAM template for Products on the application with Cognito Authorizer
 
 Parameters:
   AppName:
@@ -30,10 +30,10 @@ Globals:
         STAGE: !Ref Stage
 
 Resources:
-  VendorServiceRole:
+  ProductServiceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-role"
+      RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-product-role"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AWSLambdaExecute"
       AssumeRolePolicyDocument:
@@ -46,7 +46,7 @@ Resources:
             Action:
               - "sts:AssumeRole"
       Policies:
-        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-policy"
+        - PolicyName: !Sub "${AppName}-${Stage}-${ServiceName}-product-policy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -90,7 +90,7 @@ Resources:
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"
 
-  VendorApiGatewayRole:
+  ProductApiGatewayRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub "${AppName}-${Stage}-${ServiceName}-api-gateway-role"
@@ -116,88 +116,88 @@ Resources:
               - Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource: 
-                  - !GetAtt CreateVendorFunction.Arn
-                  - !GetAtt GetVendorFunction.Arn
-                  - !GetAtt GetVendorIdFunction.Arn
-                  - !GetAtt ListVendorsFunction.Arn
+                  - !GetAtt CreateProductFunction.Arn
+                  - !GetAtt GetProductFunction.Arn
+                  - !GetAtt GetProductIdFunction.Arn
+                  - !GetAtt ListProductsFunction.Arn
 
-  CreateVendorFunction:
+  CreateProductFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-create-vendor-function"
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-create-product-function"
       Handler: main.handler
-      CodeUri: ./src/create-vendor/
-      Role: !GetAtt VendorServiceRole.Arn
-      Description: Create vendors on the application
+      CodeUri: ./src/create-product/
+      Role: !GetAtt ProductServiceRole.Arn
+      Description: Create products on the application
       Events:
-        CreateVendor:
+        CreateProduct:
           Type: Api
           Properties:
-            Path: /create-vendor
+            Path: /create-product
             Method: POST
-            RestApiId: !Ref VendorApi
+            RestApiId: !Ref ProductApi
             Auth:
               Authorizer: CognitoAuthorizer
 
-  GetVendorFunction:
+  GetProductFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-vendor-function"
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-product-function"
       Handler: main.handler
-      CodeUri: ./src/get-vendor/
-      Role: !GetAtt VendorServiceRole.Arn
-      Description: Get vendors on the application
+      CodeUri: ./src/get-product/
+      Role: !GetAtt ProductServiceRole.Arn
+      Description: Get products on the application
       Events:
-        GetVendor:
+        GetProduct:
           Type: Api
           Properties:
-            Path: /get-vendor
+            Path: /get-product
             Method: GET
-            RestApiId: !Ref VendorApi
+            RestApiId: !Ref ProductApi
             Auth:
               Authorizer: CognitoAuthorizer
 
-  GetVendorIdFunction:
+  GetProductIdFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-vendor-id-function"
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-product-id-function"
       Handler: main.handler
-      CodeUri: ./src/get-vendor-id/
-      Role: !GetAtt VendorServiceRole.Arn
-      Description: Get vendors by id on the application
+      CodeUri: ./src/get-product-id/
+      Role: !GetAtt ProductServiceRole.Arn
+      Description: Get products by id on the application
       Events:
-        GetVendorId:
+        GetProductId:
           Type: Api
           Properties:
-            Path: /get-vendor-id
+            Path: /get-product-id
             Method: POST
-            RestApiId: !Ref VendorApi
+            RestApiId: !Ref ProductApi
             Auth:
               Authorizer: CognitoAuthorizer
 
-  ListVendorsFunction:
+  ListProductsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-vendor-function"
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-products-function"
       Handler: main.handler
-      CodeUri: ./src/list-vendor/
-      Role: !GetAtt VendorServiceRole.Arn
-      Description: List vendors on the application
+      CodeUri: ./src/list-products/
+      Role: !GetAtt ProductServiceRole.Arn
+      Description: List products on the application
       Events:
-        ListVendors:
+        ListProducts:
           Type: Api
           Properties:
-            Path: /list-vendors
+            Path: /list-products
             Method: GET
-            RestApiId: !Ref VendorApi
+            RestApiId: !Ref ProductApi
             Auth:
               Authorizer: NONE
 
-  VendorApi:
+  ProductApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref Stage
-      Name: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-api"
+      Name: !Sub "${AppName}-${Stage}-${ServiceName}-product-api"
       TracingEnabled: true
       EndpointConfiguration: REGIONAL
       Auth:
@@ -233,43 +233,43 @@ Resources:
     Metadata:
       BuildMethod: python3.10
 
-  CreateVendorFunctionLogGroup:
+  CreateProductFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${CreateVendorFunction}"
+      LogGroupName: !Sub "/aws/lambda/${CreateProductFunction}"
       RetentionInDays: 14
 
-  GetVendorFunctionLogGroup:
+  GetProductFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${GetVendorFunction}"
+      LogGroupName: !Sub "/aws/lambda/${GetProductFunction}"
       RetentionInDays: 14
 
-  GetVendorIdFunctionLogGroup:
+  GetProductIdFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${GetVendorIdFunction}"
+      LogGroupName: !Sub "/aws/lambda/${GetProductIdFunction}"
       RetentionInDays: 14
   
-  ListVendorsFunctionLogGroup:
+  ListProductsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${ListVendorsFunction}"
+      LogGroupName: !Sub "/aws/lambda/${ListProductsFunction}"
       RetentionInDays: 14
 
 Outputs:
-  CreateVendorFunctionArn:
-    Description: "Create Vendor Function ARN"
-    Value: !GetAtt CreateVendorFunction.Arn
-  GetVendorFunctionArn:
-    Description: "Get Vendor Function ARN"
-    Value: !GetAtt GetVendorFunction.Arn
-  GetVendorIdFunctionArn:
-    Description: "Get Vendor By ID Function ARN"
-    Value: !GetAtt GetVendorIdFunction.Arn
-  ListVendorsFunctionArn:
-    Description: "List Vendors Function ARN"
-    Value: !GetAtt ListVendorsFunction.Arn
-  VendorApiEndpoint:
-    Description: "Vendor API Endpoint URL"
-    Value: !Sub "https://${VendorApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+  CreateProductFunctionArn:
+    Description: "Create Product Function ARN"
+    Value: !GetAtt CreateProductFunction.Arn
+  GetProductFunctionArn:
+    Description: "Get Product Function ARN"
+    Value: !GetAtt GetProductFunction.Arn
+  GetProductIdFunctionArn:
+    Description: "Get Product By ID Function ARN"
+    Value: !GetAtt GetProductIdFunction.Arn
+  ListProductsFunctionArn:
+    Description: "List Products Function ARN"
+    Value: !GetAtt ListProductssFunction.Arn
+  ProductApiEndpoint:
+    Description: "Product API Endpoint URL"
+    Value: !Sub "https://${ProductApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

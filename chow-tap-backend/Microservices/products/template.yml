@@ -117,7 +117,6 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: 
                   - !GetAtt CreateProductFunction.Arn
-                  - !GetAtt GetProductFunction.Arn
                   - !GetAtt GetProductIdFunction.Arn
                   - !GetAtt ListProductsFunction.Arn
 
@@ -135,24 +134,6 @@ Resources:
           Properties:
             Path: /create-product
             Method: POST
-            RestApiId: !Ref ProductApi
-            Auth:
-              Authorizer: CognitoAuthorizer
-
-  GetProductFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-product-function"
-      Handler: main.handler
-      CodeUri: ./src/get-product/
-      Role: !GetAtt ProductServiceRole.Arn
-      Description: Get products on the application
-      Events:
-        GetProduct:
-          Type: Api
-          Properties:
-            Path: /get-product
-            Method: GET
             RestApiId: !Ref ProductApi
             Auth:
               Authorizer: CognitoAuthorizer
@@ -239,12 +220,6 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${CreateProductFunction}"
       RetentionInDays: 14
 
-  GetProductFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${GetProductFunction}"
-      RetentionInDays: 14
-
   GetProductIdFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -261,9 +236,6 @@ Outputs:
   CreateProductFunctionArn:
     Description: "Create Product Function ARN"
     Value: !GetAtt CreateProductFunction.Arn
-  GetProductFunctionArn:
-    Description: "Get Product Function ARN"
-    Value: !GetAtt GetProductFunction.Arn
   GetProductIdFunctionArn:
     Description: "Get Product By ID Function ARN"
     Value: !GetAtt GetProductIdFunction.Arn

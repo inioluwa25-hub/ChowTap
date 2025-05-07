@@ -1,18 +1,12 @@
-from os import getenv
 import json
-import re
-import boto3
+from os import getenv
 from time import time
-from decimal import Decimal
-from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel, field_validator
 from uuid import uuid4
-from typing import Literal
-from utils import (
-    make_response,
-    handle_exceptions,
-    logger,
-)
+
+import boto3
+from aws_lambda_powertools.utilities import parameters
+from pydantic import BaseModel, validator
+from utils import handle_exceptions, logger, make_response
 
 # Environment variables
 STAGE = getenv("STAGE")
@@ -40,7 +34,7 @@ class ProductSchema(BaseModel):
     preparation_time: int
     category: str
 
-    @field_validator("category")
+    @validator("category")
     def validate_category(cls, v):
         allowed = ["main_dish", "side_dish", "protein", "drink", "snack"]
         if v not in allowed:
@@ -74,7 +68,13 @@ def main(event, context=None):
         except Exception as e:
             logger.error(f"Invalid payload: {str(e)}")
             return make_response(
-                400, {"error": True, "success": False, "message": str(e), "data": None}
+                400,
+                {
+                    "error": True,
+                    "success": False,
+                    "message": str(e),
+                    "data": None,
+                },
             )
 
         claims = authorizer.get("claims") or authorizer
@@ -101,12 +101,13 @@ def main(event, context=None):
             response["message"] = "complete registration to become a vendor"
             return make_response(status_code, response)
 
-        product_id = f"Product#{uuid4()}"
+        product_id = f"Product#{user_id}#{uuid4()}"
         timestamp = int(time())
 
-        product_payload = payload.update(
+        product_payload = payload.dict()
+        product_payload.update(
             {
-                "pk": "car",
+                "pk": "Product",
                 "sk": product_id,
                 "user_id": user_id,
                 "created_at": timestamp,
@@ -116,8 +117,14 @@ def main(event, context=None):
 
         table.put_item(Item=product_payload)
 
-        del response["message"]
-        response.update({"error": False, "success": True, "data": product_id})
+        response.update(
+            {
+                "error": False,
+                "success": True,
+                "data": product_id,
+                "message": "Product created successfully",
+            }
+        )
         status_code = 200
 
     except client.exceptions.NotAuthorizedException as e:

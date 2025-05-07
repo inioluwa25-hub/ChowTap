@@ -28,24 +28,24 @@ db = boto3.resource("dynamodb")
 table = db.Table("chow-tap-prod-main-table")
 
 
-class VendorSchema(BaseModel):
-    vendor_id: str
+class ProductSchema(BaseModel):
+    product_id: str
 
 
-def get_vendor_by_id(vendor_id: str) -> Optional[Dict]:
+def get_product_by_id(product_id: str) -> Optional[Dict]:
     """
-    Retrieves a vendor from the database by ID
+    Retrieves a product from the database by ID
 
     Args:
-        vendor_id (str): The ID of the vendor to retrieve (used as sort key in DB)
+        product_id (str): The ID of the product to retrieve (used as sort key in DB)
 
     Returns:
-        Dict or None: The vendor data or None if not found
+        Dict or None: The product data or None if not found
     """
     try:
         # Execute the query
         response = table.query(
-            KeyConditionExpression=Key("pk").eq("Vendor") & Key("sk").eq(vendor_id),
+            KeyConditionExpression=Key("pk").eq("Product") & Key("sk").eq(product_id),
         )
 
         # Return the first item found (or None if none found)
@@ -53,7 +53,7 @@ def get_vendor_by_id(vendor_id: str) -> Optional[Dict]:
         return items[0] if items else None
 
     except Exception as e:
-        print(f"Error retrieving vendor: {str(e)}")
+        print(f"Error retrieving product: {str(e)}")
         return None
 
 
@@ -78,7 +78,7 @@ def main(event, context=None):
         except json.JSONDecodeError:
             body = {}
         try:
-            payload = VendorSchema(**body)
+            payload = ProductSchema(**body)
             logger.info(f"payload - {payload}")
         except Exception as e:
             logger.error(f"Invalid payload: {str(e)}")
@@ -103,15 +103,15 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        vendor = get_vendor_by_id(payload.vendor_id)
-        if vendor:
+        product = get_product_by_id(payload.product_id)
+        if product:
             status_code = 200
             response["message"] = "success"
             response["error"], response["success"] = False, True
-            response["data"] = vendor
+            response["data"] = product
         else:
             status_code = 404
-            response["message"] = "Vendor not found"
+            response["message"] = "Product not found"
 
     except client.exceptions.NotAuthorizedException as e:
         logger.error(f"Not authorized: {str(e)}")

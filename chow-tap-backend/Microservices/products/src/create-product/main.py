@@ -109,6 +109,8 @@ def main(event, context=None):
             {
                 "pk": "Product",
                 "sk": product_id,
+                "vendor_name": vendor.get("business_name"),
+                "vendor_id": vendor.get("sk"),
                 "user_id": user_id,
                 "created_at": timestamp,
                 "updated_at": timestamp,

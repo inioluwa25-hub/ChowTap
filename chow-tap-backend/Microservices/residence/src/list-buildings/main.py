@@ -1,12 +1,5 @@
 from os import getenv
-import boto3
-import json
-import base64
-from aws_lambda_powertools.utilities import parameters
 from utils import make_response, handle_exceptions, logger
-from typing import List, Optional
-from pydantic import BaseModel
-from boto3.dynamodb.conditions import Key
 
 # Environment variables
 STAGE = getenv("STAGE")
@@ -14,29 +7,18 @@ APP_NAME = getenv("APP_NAME")
 
 # List of available buildings for delivery
 BUILDINGS = [
-    {"id": "bldg-001", "name": "Colcom", "location": "North Campus", "is_active": True},
-    {"id": "bldg-002", "name": "Atuwatse", "location": "East Wing", "is_active": True},
-    {
-        "id": "bldg-003",
-        "name": "Faye Curtis",
-        "location": "South Campus",
-        "is_active": True,
-    },
-    {"id": "bldg-004", "name": "Emerald", "location": "West Campus", "is_active": True},
-    {
-        "id": "bldg-005",
-        "name": "Sapphire",
-        "location": "Central Area",
-        "is_active": True,
-    },
-    {
-        "id": "bldg-006",
-        "name": "Diamond",
-        "location": "North Campus",
-        "is_active": False,
-    },
-    {"id": "bldg-007", "name": "Ruby", "location": "South Campus", "is_active": True},
-    {"id": "bldg-008", "name": "Crystal", "location": "East Wing", "is_active": True},
+    {"id": "bldg-001", "name": "ADMIN", "is_active": True},
+    {"id": "bldg-002", "name": "ATUWASE", "is_active": True},
+    {"id": "bldg-003", "name": "CHAPEL", "is_active": True},
+    {"id": "bldg-004", "name": "CLINIC", "is_active": True},
+    {"id": "bldg-005", "name": "COLCOM", "is_active": True},
+    {"id": "bldg-006", "name": "COLHUM", "is_active": True},
+    {"id": "bldg-007", "name": "COLNAS", "is_active": True},
+    {"id": "bldg-008", "name": "COSMAS", "is_active": True},
+    {"id": "bldg-009", "name": "GLENN BURRIS", "is_active": True},
+    {"id": "bldg-010", "name": "JEHOVAH SHAMMAH", "is_active": True},
+    {"id": "bldg-011", "name": "LIBRARY", "is_active": True},
+    {"id": "bldg-012", "name": "NURSING COLLEGE", "is_active": True},
 ]
 
 

@@ -118,6 +118,7 @@ Resources:
                 Resource: 
                   - !GetAtt CreateVendorFunction.Arn
                   - !GetAtt GetVendorFunction.Arn
+                  - !GetAtt GetVendorIdFunction.Arn
                   - !GetAtt ListVendorsFunction.Arn
 
   CreateVendorFunction:
@@ -152,6 +153,24 @@ Resources:
           Properties:
             Path: /get-vendor
             Method: GET
+            RestApiId: !Ref VendorApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  GetVendorIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-vendor-id-function"
+      Handler: main.handler
+      CodeUri: ./src/get-vendor-id/
+      Role: !GetAtt VendorServiceRole.Arn
+      Description: Get vendors by id on the application
+      Events:
+        GetVendor:
+          Type: Api
+          Properties:
+            Path: /get-vendor-id
+            Method: POST
             RestApiId: !Ref VendorApi
             Auth:
               Authorizer: CognitoAuthorizer
@@ -225,6 +244,12 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${GetVendorFunction}"
       RetentionInDays: 14
+
+  GetVendorIdFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetVendorIdFunction}"
+      RetentionInDays: 14
   
   ListVendorsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -239,6 +264,9 @@ Outputs:
   GetVendorFunctionArn:
     Description: "Get Vendor Function ARN"
     Value: !GetAtt GetVendorFunction.Arn
+  GetVendorIdFunctionArn:
+    Description: "Get Vendor By ID Function ARN"
+    Value: !GetAtt GetVendorIdFunction.Arn
   ListVendorsFunctionArn:
     Description: "List Vendors Function ARN"
     Value: !GetAtt ListVendorsFunction.Arn

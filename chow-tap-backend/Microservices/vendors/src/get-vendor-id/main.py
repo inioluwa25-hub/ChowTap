@@ -1,7 +1,10 @@
 from os import getenv
 import json
 import boto3
+from boto3.dynamodb.conditions import Key
+from pydantic import BaseModel
 from aws_lambda_powertools.utilities import parameters
+from typing import Dict, Optional
 from utils import (
     make_response,
     handle_exceptions,
@@ -25,6 +28,35 @@ db = boto3.resource("dynamodb")
 table = db.Table("chow-tap-prod-main-table")
 
 
+class VendorSchema(BaseModel):
+    vendor_id: str
+
+
+def get_vendor_by_id(vendor_id: str) -> Optional[Dict]:
+    """
+    Retrieves a vendor from the database by ID
+
+    Args:
+        vendor_id (str): The ID of the vendor to retrieve (used as sort key in DB)
+
+    Returns:
+        Dict or None: The vendor data or None if not found
+    """
+    try:
+        # Execute the query
+        response = table.query(
+            KeyConditionExpression=Key("pk").eq("Vendor") & Key("sk").eq(vendor_id),
+        )
+
+        # Return the first item found (or None if none found)
+        items = response.get("Items", [])
+        return items[0] if items else None
+
+    except Exception as e:
+        print(f"Error retrieving vendor: {str(e)}")
+        return None
+
+
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
@@ -40,6 +72,19 @@ def main(event, context=None):
         # Enhanced claims extraction
         request_context = event.get("requestContext", {})
         authorizer = request_context.get("authorizer") or {}
+
+        try:
+            body = json.loads(event.get("body", "{}") or "{}")
+        except json.JSONDecodeError:
+            body = {}
+        try:
+            payload = VendorSchema(**body)
+            logger.info(f"payload - {payload}")
+        except Exception as e:
+            logger.error(f"Invalid payload: {str(e)}")
+            return make_response(
+                400, {"error": True, "success": False, "message": str(e), "data": None}
+            )
 
         claims = authorizer.get("claims") or authorizer
 
@@ -58,12 +103,7 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        vendor = table.get_item(
-            Key={
-                "pk": "Vendor",
-                "sk": f"Vendor#{user_id}",
-            }
-        ).get("Item")
+        vendor = get_vendor_by_id(payload.vendor_id)
         if vendor:
             status_code = 200
             response["message"] = "success"

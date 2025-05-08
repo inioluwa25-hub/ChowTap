@@ -143,7 +143,7 @@ Resources:
   BulkUploadProductsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-create-product-function"
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-bulk-upload-products-function"
       Handler: main.handler
       CodeUri: ./src/bulk-upload-products/
       Role: !GetAtt ProductServiceRole.Arn

@@ -117,6 +117,7 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: 
                   - !GetAtt CreateProductFunction.Arn
+                  - !GetAtt BulkUploadProductsFunction.Arn
                   - !GetAtt GetProductIdFunction.Arn
                   - !GetAtt ListProductsFunction.Arn
                   - !GetAtt ListVendorProductsFunction.Arn
@@ -134,6 +135,24 @@ Resources:
           Type: Api
           Properties:
             Path: /create-product
+            Method: POST
+            RestApiId: !Ref ProductApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  BulkUploadProductsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-create-product-function"
+      Handler: main.handler
+      CodeUri: ./src/bulk-upload-products/
+      Role: !GetAtt ProductServiceRole.Arn
+      Description: Bulk upload products on the application
+      Events:
+        BulkUploadProducts:
+          Type: Api
+          Properties:
+            Path: /bulk-upload-product
             Method: POST
             RestApiId: !Ref ProductApi
             Auth:
@@ -239,6 +258,12 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${CreateProductFunction}"
       RetentionInDays: 14
 
+  BulkUploadProductsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${BulkUploadProductsFunction}"
+      RetentionInDays: 14
+
   GetProductIdFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -261,6 +286,9 @@ Outputs:
   CreateProductFunctionArn:
     Description: "Create Product Function ARN"
     Value: !GetAtt CreateProductFunction.Arn
+  BulkUploadProductsFunctionArn:
+    Description: "Bulk Upload Product Function ARN"
+    Value: !GetAtt BulkUploadProductsFunction.Arn
   GetProductIdFunctionArn:
     Description: "Get Product By ID Function ARN"
     Value: !GetAtt GetProductIdFunction.Arn

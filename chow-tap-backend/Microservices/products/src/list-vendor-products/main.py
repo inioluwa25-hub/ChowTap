@@ -59,18 +59,30 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        product = table.query(
+        response = table.query(
             KeyConditionExpression=Key("pk").eq("Product")
-            & Key("sk").begins_with("Product#{user_id}"),
-        ).get("Item")
-        if product:
+            & Key("sk").begins_with(f"Product#{user_id}"),
+            Limit=50,  # Adjust as needed
+        )
+
+        products = response.get("Items", [])
+
+        if products:
             status_code = 200
-            response["message"] = "success"
-            response["error"], response["success"] = False, True
-            response["data"] = product
+            response = {
+                "error": False,
+                "success": True,
+                "message": "Products retrieved successfully",
+                "data": products,  # Returns all found products
+            }
         else:
             status_code = 404
-            response["message"] = "Products not found"
+            response = {
+                "error": True,
+                "success": False,
+                "message": "No products found for this vendor",
+                "data": None,
+            }
 
     except client.exceptions.NotAuthorizedException as e:
         logger.error(f"Not authorized: {str(e)}")

@@ -120,6 +120,7 @@ Resources:
                   - !GetAtt GetVendorFunction.Arn
                   - !GetAtt GetVendorIdFunction.Arn
                   - !GetAtt ListVendorsFunction.Arn
+                  - !GetAtt VendorRatingFunction.Arn
 
   CreateVendorFunction:
     Type: AWS::Serverless::Function
@@ -170,6 +171,24 @@ Resources:
           Type: Api
           Properties:
             Path: /get-vendor-id
+            Method: POST
+            RestApiId: !Ref VendorApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  VendorRatingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-rating-function"
+      Handler: main.handler
+      CodeUri: ./src/vendor-rating/
+      Role: !GetAtt VendorServiceRole.Arn
+      Description: Vendor rating on the application
+      Events:
+        GetVendorId:
+          Type: Api
+          Properties:
+            Path: /vendor-rating
             Method: POST
             RestApiId: !Ref VendorApi
             Auth:
@@ -257,6 +276,12 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${ListVendorsFunction}"
       RetentionInDays: 14
 
+  VendorRatingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${VendorRatingFunction}"
+      RetentionInDays: 14
+
 Outputs:
   CreateVendorFunctionArn:
     Description: "Create Vendor Function ARN"
@@ -267,6 +292,9 @@ Outputs:
   GetVendorIdFunctionArn:
     Description: "Get Vendor By ID Function ARN"
     Value: !GetAtt GetVendorIdFunction.Arn
+  VendorRatingFunctionArn:
+    Description: "Vendor Rating Function ARN"
+    Value: !GetAtt VendorRatingFunction.Arn
   ListVendorsFunctionArn:
     Description: "List Vendors Function ARN"
     Value: !GetAtt ListVendorsFunction.Arn

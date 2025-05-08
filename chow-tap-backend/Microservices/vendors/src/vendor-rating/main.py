@@ -26,29 +26,14 @@ table = db.Table("chow-tap-prod-main-table")
 
 
 class ProductSchema(BaseModel):
-    food_name: str
-    description: str
-    price: int
-    image: str
-    is_available: bool
-    preparation_time: int
-    category: str
+    vendor_id: str
+    review: str
+    rate: int
 
-    @validator("category")
-    def validate_category(cls, v):
-        allowed = ["main_dish", "side_dish", "protein", "drink", "snack"]
-        if v not in allowed:
-            raise ValueError(f"Category must be one of: {allowed}")
-        return v
-
-
-class BulkProductSchema(BaseModel):
-    products: list[ProductSchema]
-
-    @validator("products")
-    def validate_products(cls, v):
-        if not v:
-            raise ValueError("At least one product must be provided")
+    @validator("rate")
+    def check_rate_range(cls, v):
+        if v < 1 or v > 5:
+            raise ValueError("rate must be between 1 and 5")
         return v
 
 
@@ -69,19 +54,12 @@ def main(event, context=None):
         authorizer = request_context.get("authorizer") or {}
 
         try:
-            body = json.loads(
-                event.get("body", "[]")
-            )  # Default to empty list if no body
+            body = json.loads(event.get("body", "{}") or "{}")
         except json.JSONDecodeError:
-            body = []
-
-        successful_uploads = []
-        failed_uploads = []
-
-        # Validate the entire payload first using BulkProductSchema
+            body = {}
         try:
-            validated_payload = BulkProductSchema(products=body)
-            logger.info(f"Validated payload - {validated_payload}")
+            payload = ProductSchema(**body)
+            logger.info(f"payload - {payload}")
         except Exception as e:
             logger.error(f"Invalid payload: {str(e)}")
             return make_response(
@@ -118,41 +96,45 @@ def main(event, context=None):
             response["message"] = "complete registration to become a vendor"
             return make_response(status_code, response)
 
-        # Process each product in the validated payload
-        for product in validated_payload.products:
-            try:
-                product_id = f"Product#{user_id}#{uuid4()}"
-                timestamp = int(time())
+        timestamp = int(time())
 
-                product_payload = product.dict()
-                product_payload.update(
-                    {
-                        "pk": "Product",
-                        "sk": product_id,
-                        "vendor_name": vendor.get("business_name"),
-                        "vendor_id": vendor.get("sk"),
-                        "user_id": user_id,
-                        "created_at": timestamp,
-                        "updated_at": timestamp,
-                    }
-                )
-
-                table.put_item(Item=product_payload)
-                successful_uploads.append(product_payload)
-            except Exception as e:
-                logger.error(f"Error processing product entry: {e}")
-                failed_uploads.append({"product": product.dict(), "error": str(e)})
-
-        status_code = 200
-        response.update(
+        vendor_id = payload.vendor_id
+        product_payload = payload.dict()
+        product_payload.update(
             {
-                "error": False,
-                "success": True,
-                "message": "Bulk product upload processed",
-                "successful_uploads": successful_uploads,
-                "failed_uploads": failed_uploads,
+                "pk": "Product",
+                "sk": f"{vendor_id}#{str(uuid4())}#{int(time())}",
+                "vendor_name": vendor.get("business_name"),
+                "user_id": claims["sub"],
+                "reviewed_by": claims,
+                "created_at": timestamp,
+                "updated_at": timestamp,
             }
         )
+
+        table.put_item(Item=product_payload)
+
+        normalize_review = table.get_item(
+            Key={"pk": "review", "sk": payload.vendor_id}
+        ).get("Item")
+        if normalize_review:
+            normalize_review["count"] = normalize_review["count"] + 1
+            normalize_review["sum"] = normalize_review["sum"] + payload.rate
+            normalize_review["avg_review"] = str(
+                normalize_review["sum"] / normalize_review["count"]
+            )
+        else:
+            normalize_review = {
+                "pk": "review",
+                "sk": payload.vendor_id,
+                "sum": payload.rate,
+                "count": 1,
+                "avg_review": str(payload["rate"]),
+            }
+        table.put_item(Item=normalize_review)
+        status_code = 200
+        response["error"], response["success"] = False, True
+        response["message"] = "success"
 
     except client.exceptions.NotAuthorizedException as e:
         logger.error(f"Not authorized: {str(e)}")

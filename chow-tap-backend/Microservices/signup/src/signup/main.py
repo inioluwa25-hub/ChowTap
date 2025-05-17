@@ -49,7 +49,7 @@ class SignupSchema(BaseModel):
             raise ValueError("Password must contain at least one capital letter.")
         if not any(c.isdigit() for c in password):
             raise ValueError("Password must contain at least one digit.")
-        if not any(c in "@$!%*?&-.,.#`~^()" for c in password):
+        if not any(c in "@$!%*?&-.,.#`~^_()" for c in password):
             raise ValueError("Password must contain at least one special character.")
         return password
 

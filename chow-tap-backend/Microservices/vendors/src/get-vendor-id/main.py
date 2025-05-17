@@ -32,6 +32,11 @@ class VendorSchema(BaseModel):
     vendor_id: str
 
 
+def get_rating(vendor_id):
+    review = table.get_item(Key={"pk": "review", "sk": vendor_id}).get("Item", {})
+    return review.get("avg_review", "0")
+
+
 def get_vendor_by_id(vendor_id: str) -> Optional[Dict]:
     """
     Retrieves a vendor from the database by ID
@@ -104,6 +109,7 @@ def main(event, context=None):
             return make_response(status_code, response)
 
         vendor = get_vendor_by_id(payload.vendor_id)
+        vendor["rating_avg_value"] = get_rating(payload.vendor_id)
         if vendor:
             status_code = 200
             response["message"] = "success"

@@ -27,7 +27,7 @@ table = db.Table("chow-tap-prod-main-table")
 
 class ProductSchema(BaseModel):
     vendor_id: str
-    review: str
+    review: str | None = None
     rate: int
 
     @validator("rate")
@@ -89,7 +89,7 @@ def main(event, context=None):
             response["message"] = "Unauthorized - No user identifier"
             return make_response(status_code, response)
 
-        vendor = table.get_item(Key={"pk": "Vendor", "sk": f"Vendor#{user_id}"}).get(
+        vendor = table.get_item(Key={"pk": "Vendor", "sk": payload.vendor_id}).get(
             "Item"
         )
         if not vendor:
@@ -102,7 +102,7 @@ def main(event, context=None):
         product_payload = payload.dict()
         product_payload.update(
             {
-                "pk": "Product",
+                "pk": "review",
                 "sk": f"{vendor_id}#{str(uuid4())}#{int(time())}",
                 "vendor_name": vendor.get("business_name"),
                 "user_id": claims["sub"],
@@ -129,7 +129,7 @@ def main(event, context=None):
                 "sk": payload.vendor_id,
                 "sum": payload.rate,
                 "count": 1,
-                "avg_review": str(payload["rate"]),
+                "avg_review": str(payload.rate),
             }
         table.put_item(Item=normalize_review)
         status_code = 200

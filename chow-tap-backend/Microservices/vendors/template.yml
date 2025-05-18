@@ -121,6 +121,44 @@ Resources:
                   - !GetAtt GetVendorIdFunction.Arn
                   - !GetAtt ListVendorsFunction.Arn
                   - !GetAtt VendorRatingFunction.Arn
+                  - !GetAtt CreateFavoriteFunction.Arn
+                  - !GetAtt ListFavoriteFunction.Arn
+
+  CreateFavoriteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-create-favorite-function"
+      Handler: main.handler
+      CodeUri: ./src/favorite-vendor/create-favorite/
+      Role: !GetAtt VendorServiceRole.Arn
+      Description: Create favorites on the application
+      Events:
+        CreateFavorite:
+          Type: Api
+          Properties:
+            Path: /create-favorite
+            Method: POST
+            RestApiId: !Ref VendorApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  ListFavoriteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-list-favorite-function"
+      Handler: main.handler
+      CodeUri: ./src/favorite-vendor/list-favorite/
+      Role: !GetAtt VendorServiceRole.Arn
+      Description: List favorites on the application
+      Events:
+        ListFavorite:
+          Type: Api
+          Properties:
+            Path: /list-favorite
+            Method: POST
+            RestApiId: !Ref VendorApi
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   CreateVendorFunction:
     Type: AWS::Serverless::Function
@@ -258,6 +296,18 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${CreateVendorFunction}"
       RetentionInDays: 14
 
+  CreateFavoriteFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CreateFavoriteFunction}"
+      RetentionInDays: 14
+
+  ListFavoriteFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListFavoriteFunction}"
+      RetentionInDays: 14
+
   GetVendorFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -286,6 +336,12 @@ Outputs:
   CreateVendorFunctionArn:
     Description: "Create Vendor Function ARN"
     Value: !GetAtt CreateVendorFunction.Arn
+  CreateFavoriteFunctionArn:
+    Description: "Create Favorite Function ARN"
+    Value: !GetAtt CreateFavoriteFunction.Arn
+  ListFavoriteFunctionArn:
+    Description: "List Favorites Function ARN"
+    Value: !GetAtt ListFavoriteFunction.Arn
   GetVendorFunctionArn:
     Description: "Get Vendor Function ARN"
     Value: !GetAtt GetVendorFunction.Arn

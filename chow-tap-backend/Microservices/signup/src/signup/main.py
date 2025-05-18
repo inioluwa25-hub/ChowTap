@@ -92,7 +92,7 @@ def main(event, context=None):
         logger.info(f"payload - {payload}")
 
         # Convert to E.164 format for Cognito
-        e164_phone = "+234" + payload.phone_number[1:]  # Replace leading 0 with +234
+        e164_phone = "+234" + payload.phone_number[1:]
 
         user_attr = [
             {"Name": "email", "Value": payload.email},
@@ -101,18 +101,29 @@ def main(event, context=None):
             {"Name": "phone_number", "Value": e164_phone},
         ]
 
-        client.sign_up(
-            ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash_individual(payload.email),
+        response = client.admin_create_user(
+            UserPoolId=POOL_ID,
+            Username=payload.email,
+            TemporaryPassword=payload.password,
+            UserAttributes=user_attr,
+            MessageAction="SUPPRESS",
+            DesiredDeliveryMediums=["EMAIL"],
+        )
+
+        # Set permanent password
+        client.admin_set_user_password(
+            UserPoolId=POOL_ID,
             Username=payload.email,
             Password=payload.password,
-            UserAttributes=user_attr,
-            ValidationData=[{"Name": "email", "Value": payload.email}],
+            Permanent=True,
         )
-        status_code = 200
-        response["error"] = False
-        response["success"] = True
-        response["message"] = "please confirm signup"
+
+        response = {
+            "error": False,
+            "success": True,
+            "message": "User created successfully",
+            "data": None,
+        }
 
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)

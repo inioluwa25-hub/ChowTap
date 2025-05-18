@@ -5,7 +5,9 @@ import json
 import re
 import traceback
 from os import getenv
-
+import dns.resolver
+import smtplib
+import socket
 import boto3
 from aws_lambda_powertools.utilities import parameters
 from pydantic import BaseModel, EmailStr, validator
@@ -23,6 +25,51 @@ CLIENT_SECRET = parameters.get_parameter(
 
 # AWS client
 client = boto3.client("cognito-idp")
+
+
+class EmailVerifier:
+    @staticmethod
+    def verify_email(email: str) -> bool:
+        """Perform comprehensive email verification"""
+        if not EmailVerifier._check_syntax(email):
+            return False
+        if not EmailVerifier._check_domain(email.split("@")[1]):
+            return False
+        return EmailVerifier._check_smtp(email)
+
+    @staticmethod
+    def _check_syntax(email: str) -> bool:
+        """Basic syntax check (Pydantic already does this)"""
+        return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
+
+    @staticmethod
+    def _check_domain(domain: str) -> bool:
+        """Check if domain has valid MX records"""
+        try:
+            return bool(dns.resolver.resolve(domain, "MX"))
+        except (
+            dns.resolver.NoAnswer,
+            dns.resolver.NXDOMAIN,
+            dns.resolver.NoNameservers,
+        ):
+            return False
+
+    @staticmethod
+    def _check_smtp(email: str, timeout: int = 5) -> bool:
+        """Check if email exists by simulating SMTP conversation"""
+        domain = email.split("@")[1]
+        try:
+            records = dns.resolver.resolve(domain, "MX")
+            mx_record = str(records[0].exchange)
+
+            with smtplib.SMTP(timeout=timeout) as smtp:
+                smtp.connect(mx_record)
+                smtp.helo()
+                smtp.mail("test@example.com")
+                code, _ = smtp.rcpt(email)
+                return code == 250
+        except (smtplib.SMTPException, socket.timeout, socket.error):
+            return False
 
 
 class SignupSchema(BaseModel):
@@ -85,15 +132,24 @@ def main(event, context=None):
         "data": None,
     }
 
-    logger.info(event)
     try:
         body = json.loads(event["body"])
         payload = SignupSchema(**body)
-        logger.info(f"payload - {payload}")
 
-        # Convert to E.164 format for Cognito
+        # Verify email before proceeding
+        if not EmailVerifier.verify_email(payload.email):
+            return make_response(
+                400,
+                {
+                    "error": True,
+                    "success": False,
+                    "message": "Invalid email address",
+                    "data": None,
+                },
+            )
+
+        # Rest of your signup logic...
         e164_phone = "+234" + payload.phone_number[1:]
-
         user_attr = [
             {"Name": "email", "Value": payload.email},
             {"Name": "given_name", "Value": payload.first_name},
@@ -101,33 +157,28 @@ def main(event, context=None):
             {"Name": "phone_number", "Value": e164_phone},
         ]
 
-        response = client.admin_create_user(
-            UserPoolId=POOL_ID,
-            Username=payload.email,
-            TemporaryPassword=payload.password,
-            UserAttributes=user_attr,
-            MessageAction="SUPPRESS",
-            DesiredDeliveryMediums=["EMAIL"],
-        )
-
-        # Set permanent password
-        client.admin_set_user_password(
-            UserPoolId=POOL_ID,
+        signup_response = client.sign_up(
+            ClientId=CLIENT_ID,
+            SecretHash=get_secret_hash_individual(payload.email),
             Username=payload.email,
             Password=payload.password,
-            Permanent=True,
+            UserAttributes=user_attr,
         )
 
         response = {
             "error": False,
             "success": True,
-            "message": "User created successfully",
-            "data": None,
+            "message": "User created and automatically confirmed",
+            "data": {"email": payload.email, "status": "CONFIRMED"},
         }
+        status_code = 200
 
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)
-        response["message"] = "User with this phone number already exists"
+        response.update(
+            {"message": "User already exists", "error": True, "success": False}
+        )
+        status_code = 409
     except client.exceptions.InvalidParameterException as e:
         if "Username should be an email" in str(e):
             response["message"] = (

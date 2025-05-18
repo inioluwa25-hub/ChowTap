@@ -64,19 +64,17 @@ def main(event, context=None):
         "error": False,
         "success": True,
         "message": "",
-        "data": {"products": [], "pagination_token": None},
+        "data": {"favorites": [], "last_evaluated_key": None},
     }
 
     try:
-        # Enhanced claims extraction
+        # Claims extraction
         request_context = event.get("requestContext", {})
         authorizer = request_context.get("authorizer") or {}
 
+        # Parse body
         try:
             body = json.loads(event.get("body", "{}") or "{}")
-        except json.JSONDecodeError:
-            body = {}
-        try:
             payload = FavoriteListSchema(**body)
             logger.info(f"payload - {payload}")
         except Exception as e:
@@ -91,56 +89,92 @@ def main(event, context=None):
                 },
             )
 
+        # Get user ID from claims
         claims = authorizer.get("claims") or authorizer
-
         if not isinstance(claims, dict) or not claims:
             logger.error("No valid claims found in event")
-            logger.info(f"Full event structure: {json.dumps(event, indent=2)}")
-            status_code = 401
-            response["message"] = "Unauthorized - No claims found"
-            return make_response(status_code, response)
+            return make_response(
+                401,
+                {
+                    "error": True,
+                    "success": False,
+                    "message": "Unauthorized - No claims found",
+                    "data": None,
+                },
+            )
 
-        # Extract user_id from claims
         user_id = claims.get("sub") or claims.get("cognito:username")
         if not user_id:
-            logger.error("No user identifier found in claims")
-            status_code = 401
-            response["message"] = "Unauthorized - No user identifier"
-            return make_response(status_code, response)
+            return make_response(
+                401,
+                {
+                    "error": True,
+                    "success": False,
+                    "message": "Unauthorized - No user identifier",
+                    "data": None,
+                },
+            )
 
-        page_config = {
-            "MaxItems": 10,
-        }
+        # Get favorite vendors
+        page_config = {"MaxItems": 10}
         fav_vendors, next_token = get_vendors(
             user_id, page_config, last_evaluated_key=payload.last_evaluated_key
         )
-        vendors = []
+
+        # Process favorites with full vendor details
+        favorites = []
         if fav_vendors:
-            for vendor in fav_vendors:
-                sk = vendor["sk"].split("#")[1]
-                vendors.append(sk)
-            status_code = 200
-            response["error"] = False
-            response["success"] = True
-            del response["message"]
+            for fav in fav_vendors:
+                parts = fav["sk"].split("#")
+                if len(parts) >= 3:
+                    vendor_id = f"{parts[1]}#{parts[2]}"
+
+                    # Get full vendor details from DynamoDB
+                    vendor = table.get_item(Key={"pk": "Vendor", "sk": vendor_id}).get(
+                        "Item", {}
+                    )
+
+                    if vendor:
+                        favorites.append(
+                            {
+                                "vendor": vendor,  # Full vendor payload
+                                "favorite_info": {  # Favorite relationship details
+                                    "favorite_id": fav.get("pk") + "#" + fav.get("sk"),
+                                    "liked_by": user_id,
+                                    "liked_at": fav.get("created_at"),
+                                    "updated_at": fav.get("updated_at"),
+                                },
+                            }
+                        )
+
+            response["data"]["favorites"] = favorites
+            if next_token:
+                response["data"]["last_evaluated_key"] = next_token
         else:
             status_code = 404
-            response["message"] = "No vendors found"
-        if next_token:
-            response["data"]["last_evaluated_key"] = next_token
-        response["data"]["vendors"] = vendors
+            response["message"] = "No favorite vendors found"
 
-    except table.meta.client.exceptions.ValidationException as e:
-        logger.error(f"Invalid query: {str(e)}")
-        status_code = 400
-        response.update(
-            {"error": True, "success": False, "message": "Invalid query parameters"}
+    except table.meta.client.exceptions.ValidationException:
+        logger.error("Invalid query parameters")
+        return make_response(
+            400,
+            {
+                "error": True,
+                "success": False,
+                "message": "Invalid query parameters",
+                "data": None,
+            },
         )
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
-        status_code = 500
-        response.update(
-            {"error": True, "success": False, "message": "Failed to retrieve products"}
+        return make_response(
+            500,
+            {
+                "error": True,
+                "success": False,
+                "message": "Failed to retrieve favorites",
+                "data": None,
+            },
         )
 
     return make_response(status_code, response)

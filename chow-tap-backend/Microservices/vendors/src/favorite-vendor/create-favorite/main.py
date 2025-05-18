@@ -88,8 +88,9 @@ def main(event, context=None):
             response["message"] = "Invalid Request"
             return make_response(status_code, response)
 
-        if payload.get("like"):
-            payload.update(
+        if payload.like:
+            payload_dict = payload.dict()
+            payload_dict.update(
                 {
                     "pk": "fav",
                     "sk": f"{user_id}#{payload.vendor_id}",
@@ -98,7 +99,7 @@ def main(event, context=None):
                     "updated_at": int(time()),
                 }
             )
-            table.put_item(Item=payload)
+            table.put_item(Item=payload_dict)
             vendor["total_likes"] = (
                 str(int(vendor["total_likes"]) + 1)
                 if vendor.get("total_likes")

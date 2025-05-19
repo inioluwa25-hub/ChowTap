@@ -118,6 +118,7 @@ Resources:
                 Resource: 
                   - !GetAtt AddToCartFunction.Arn
                   - !GetAtt RemoveFromCartFunction.Arn
+                  - !GetAtt GetCartFunction.Arn
 
   AddToCartFunction:
     Type: AWS::Serverless::Function
@@ -146,11 +147,29 @@ Resources:
       Role: !GetAtt CartServiceRole.Arn
       Description: Remove products from cart on the application
       Events:
-        AddToCart:
+        RemoveFromCart:
           Type: Api
           Properties:
             Path: /remove-from-cart
             Method: POST
+            RestApiId: !Ref CartApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  GetCartFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-get-cart-function"
+      Handler: main.handler
+      CodeUri: ./src/get-cart/
+      Role: !GetAtt CartServiceRole.Arn
+      Description: Get products from cart on the application
+      Events:
+        GetCart:
+          Type: Api
+          Properties:
+            Path: /get-cart
+            Method: GET
             RestApiId: !Ref CartApi
             Auth:
               Authorizer: CognitoAuthorizer
@@ -205,6 +224,11 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${RemoveFromCartFunction}"
       RetentionInDays: 14
+  GetCartFunctionFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetCartFunction}"
+      RetentionInDays: 14
 
 Outputs:
   AddToCartFunctionArn:
@@ -213,6 +237,9 @@ Outputs:
   RemoveFromCartFunctionArn:
     Description: "Remove Products From Cart Function ARN"
     Value: !GetAtt RemoveFromCartFunction.Arn
+  GetCartFunctionArn:
+    Description: "Get Products From Cart Function ARN"
+    Value: !GetAtt GetCartFunction.Arn
   CartApiEndpoint:
     Description: "Cart API Endpoint URL"
     Value: !Sub "https://${CartApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"

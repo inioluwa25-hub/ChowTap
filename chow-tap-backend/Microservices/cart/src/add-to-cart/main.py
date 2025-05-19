@@ -2,6 +2,7 @@ import json
 from os import getenv
 from time import time
 from uuid import uuid4
+from decimal import Decimal
 
 import boto3
 from aws_lambda_powertools.utilities import parameters
@@ -76,6 +77,17 @@ def get_product_item(product_id: str):
         raise
 
 
+def convert_floats_to_decimals(obj):
+    """Recursively convert float values to Decimal in a dictionary"""
+    if isinstance(obj, dict):
+        return {k: convert_floats_to_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_floats_to_decimals(v) for v in obj]
+    elif isinstance(obj, float):
+        return Decimal(str(obj))
+    return obj
+
+
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
@@ -141,27 +153,28 @@ def main(event, context=None):
             existing_item["quantity"] += payload.quantity
             existing_item["updated_at"] = int(time())
         else:
-            cart_items.append(
-                {
-                    "cart_item_id": str(uuid4()),
-                    "food_id": payload.product_id,
-                    "name": product_item["food_name"],
-                    "price": float(product_item["price"]),
-                    "quantity": payload.quantity,
-                    "image": product_item.get("image"),
-                    "added_at": int(time()),
-                    "updated_at": int(time()),
-                }
-            )
+            new_item = {
+                "cart_item_id": str(uuid4()),
+                "product_id": payload.product_id,
+                "name": product_item["food_name"],
+                "price": Decimal(str(product_item["price"])),
+                "quantity": payload.quantity,
+                "image": product_item.get("image"),
+                "added_at": int(time()),
+                "updated_at": int(time()),
+            }
+            cart_items.append(new_item)
 
-        # 6. Persist updated cart
+        # Convert all floats to decimals before saving to DynamoDB
+        cart_items = convert_floats_to_decimals(cart_items)
         update_user_cart(user_id, cart_items)
 
-        # 7. Calculate cart summary
+        # Calculate totals (using float for response, Decimal for storage)
         total_items = sum(item["quantity"] for item in cart_items)
-        total_price = sum(item["price"] * item["quantity"] for item in cart_items)
+        total_price = float(
+            sum(Decimal(str(item["price"])) * item["quantity"] for item in cart_items)
+        )
 
-        # 8. Prepare success response
         return make_response(
             200,
             {
@@ -172,10 +185,10 @@ def main(event, context=None):
                     "cart_item_count": total_items,
                     "cart_total": round(total_price, 2),
                     "added_item": {
-                        "food_id": payload.food_id,
+                        "product_id": payload.product_id,
                         "name": product_item["food_name"],
                         "quantity": payload.quantity,
-                        "price": float(product_item["price"]),
+                        "price": float(Decimal(str(product_item["price"]))),
                     },
                 },
             },

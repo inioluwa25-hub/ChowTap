@@ -103,6 +103,16 @@ Resources:
         ServiceName: "products"
         AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
 
+  CartService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: Microservices/cart/template.yml
+      Parameters:
+        AppName: !Ref AppName
+        Stage: !Ref Stage
+        ServiceName: "cart"
+        AwsLambdaPowertoolsPythonLayer: !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+
   ImageUploadService:
     Type: AWS::Serverless::Application
     Properties:

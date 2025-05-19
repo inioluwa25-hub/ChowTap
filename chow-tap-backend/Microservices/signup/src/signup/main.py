@@ -4,6 +4,7 @@ import hmac
 import json
 import re
 import traceback
+import requests
 from os import getenv
 import dns.resolver
 import smtplib
@@ -25,51 +26,6 @@ CLIENT_SECRET = parameters.get_parameter(
 
 # AWS client
 client = boto3.client("cognito-idp")
-
-
-class EmailVerifier:
-    @staticmethod
-    def verify_email(email: str) -> bool:
-        """Perform comprehensive email verification"""
-        if not EmailVerifier._check_syntax(email):
-            return False
-        if not EmailVerifier._check_domain(email.split("@")[1]):
-            return False
-        return EmailVerifier._check_smtp(email)
-
-    @staticmethod
-    def _check_syntax(email: str) -> bool:
-        """Basic syntax check (Pydantic already does this)"""
-        return bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
-
-    @staticmethod
-    def _check_domain(domain: str) -> bool:
-        """Check if domain has valid MX records"""
-        try:
-            return bool(dns.resolver.resolve(domain, "MX"))
-        except (
-            dns.resolver.NoAnswer,
-            dns.resolver.NXDOMAIN,
-            dns.resolver.NoNameservers,
-        ):
-            return False
-
-    @staticmethod
-    def _check_smtp(email: str, timeout: int = 5) -> bool:
-        """Check if email exists by simulating SMTP conversation"""
-        domain = email.split("@")[1]
-        try:
-            records = dns.resolver.resolve(domain, "MX")
-            mx_record = str(records[0].exchange)
-
-            with smtplib.SMTP(timeout=timeout) as smtp:
-                smtp.connect(mx_record)
-                smtp.helo()
-                smtp.mail("test@example.com")
-                code, _ = smtp.rcpt(email)
-                return code == 250
-        except (smtplib.SMTPException, socket.timeout, socket.error):
-            return False
 
 
 class SignupSchema(BaseModel):
@@ -121,6 +77,36 @@ def get_secret_hash_individual(username: str) -> str:
     return d2
 
 
+# def verify_email_api(email: str) -> bool:
+#     try:
+#         api_key = "05e73f2c-266f-43e2-a1db-5b4a696400f0"
+#         response = requests.get(
+#             f"https://api.mails.so/v1/validate?email={email}",
+#             headers={"x-mails-api-key": api_key},
+#             timeout=3,
+#         )
+#         response.raise_for_status()
+#         data = response.json()
+
+#         # Check the actual response structure from your API
+#         if data.get("error") is not None:
+#             logger.error(f"Email verification API error: {data.get('error')}")
+#             return True  # Fail open
+
+#         # Use the correct field from your API response
+#         return data.get("data", {}).get("result") == "deliverable"
+
+#     except requests.exceptions.RequestException as e:
+#         logger.error(f"Email verification API request failed: {str(e)}")
+#         return True  # Fallback to true if service fails
+#     except json.JSONDecodeError as e:
+#         logger.error(f"Invalid JSON response from email verification API: {str(e)}")
+#         return True  # Fallback to true
+#     except Exception as e:
+#         logger.error(f"Unexpected error in email verification: {str(e)}")
+#         return True  # Fail open
+
+
 @logger.inject_lambda_context(log_event=True)
 @handle_exceptions
 def main(event, context=None):
@@ -136,19 +122,18 @@ def main(event, context=None):
         body = json.loads(event["body"])
         payload = SignupSchema(**body)
 
-        # Verify email before proceeding
-        if not EmailVerifier.verify_email(payload.email):
-            return make_response(
-                400,
-                {
-                    "error": True,
-                    "success": False,
-                    "message": "Invalid email address",
-                    "data": None,
-                },
-            )
+        # # Verify email before proceeding
+        # if not verify_email_api(payload.email):
+        #     return make_response(
+        #         400,
+        #         {
+        #             "error": True,
+        #             "success": False,
+        #             "message": "Please provide a valid, deliverable email address",
+        #             "data": None,
+        #         },
+        #     )
 
-        # Rest of your signup logic...
         e164_phone = "+234" + payload.phone_number[1:]
         user_attr = [
             {"Name": "email", "Value": payload.email},
@@ -157,7 +142,7 @@ def main(event, context=None):
             {"Name": "phone_number", "Value": e164_phone},
         ]
 
-        signup_response = client.sign_up(
+        client.sign_up(
             ClientId=CLIENT_ID,
             SecretHash=get_secret_hash_individual(payload.email),
             Username=payload.email,

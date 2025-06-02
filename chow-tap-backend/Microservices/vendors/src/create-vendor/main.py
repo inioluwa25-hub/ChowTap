@@ -72,6 +72,12 @@ def store_user_data(payload, user_id):
     )
 
     table.put_item(Item=vendor_data)
+    # Update cognito
+    client.admin_update_user_attributes(
+        UserAttributes=[{"Name": "custom:is_vendor", "Value": "True"}],
+        UserPoolId=POOL_ID,
+        Username=user_id,
+    )
 
 
 @logger.inject_lambda_context(log_event=True)

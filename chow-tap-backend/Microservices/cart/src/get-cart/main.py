@@ -2,7 +2,6 @@ from time import time
 from os import getenv
 from decimal import Decimal
 import boto3
-from aws_lambda_powertools.utilities import parameters
 from utils import handle_exceptions, logger, make_response
 
 # Environment variables

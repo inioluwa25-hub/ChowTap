@@ -111,7 +111,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action: lambda:InvokeFunction
-                Resource: !GetAtt LoginFunction.Arn
+                Resource: 
+                  - !GetAtt LoginFunction.Arn
+                  - !GetAtt VendorLoginFunction.Arn
 
   LoginFunction:
     Type: AWS::Serverless::Function
@@ -122,10 +124,25 @@ Resources:
       Role: !GetAtt LoginServiceRole.Arn
       Description: A simple Lambda function for logging in.
 
+  VendorLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-login-function"
+      Handler: main.handler
+      CodeUri: ./src/vendor-login/
+      Role: !GetAtt LoginServiceRole.Arn
+      Description: A simple Lambda function for logging in.
+
   LoginFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${LoginFunction}"
+      RetentionInDays: 14
+
+  VendorLoginFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${VendorLoginFunction}"
       RetentionInDays: 14
 
   PythonRequirementsLayer:
@@ -159,8 +176,12 @@ Resources:
         ServiceName: !Ref ServiceName
         LoginApiGatewayRoleArn: !GetAtt LoginApiGatewayRole.Arn
         LoginFunctionArn: !GetAtt LoginFunction.Arn
+        VendorLoginFunctionArn: !GetAtt VendorLoginFunction.Arn
 
 Outputs:
   LoginFunctionArn:
     Description: "Login Function ARN"
     Value: !GetAtt LoginFunction.Arn
+  VendorLoginFunctionArn:
+    Description: "Vendor Login Function ARN"
+    Value: !GetAtt VendorLoginFunction.Arn

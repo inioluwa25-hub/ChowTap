@@ -92,9 +92,6 @@ def main(event, context=None):
         vendor = table.get_item(Key={"pk": "Vendor", "sk": payload.vendor_id}).get(
             "Item"
         )
-        if not vendor:
-            response["message"] = "complete registration to become a vendor"
-            return make_response(status_code, response)
 
         timestamp = int(time())
 

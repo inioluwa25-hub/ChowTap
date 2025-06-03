@@ -127,6 +127,7 @@ Resources:
                   - !GetAtt SignupFunction.Arn
                   - !GetAtt ConfirmsignupFunction.Arn 
                   - !GetAtt ResendCodeFunction.Arn
+                  - !GetAtt VendorSignupFunction.Arn
 
   SignupFunction:
     Type: AWS::Serverless::Function
@@ -141,6 +142,21 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${SignupFunction}"
+      RetentionInDays: 14
+
+  VendorSignupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-signup-function"
+      Handler: main.handler
+      CodeUri: ./src/vendor-signup/
+      Role: !GetAtt SignupServiceRole.Arn
+      Description: A simple Lambda function for vendor signing up.
+
+  VendorSignupFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${VendorSignupFunction}"
       RetentionInDays: 14
 
   ResendCodeFunction:
@@ -206,6 +222,7 @@ Resources:
         SignupFunctionArn: !GetAtt SignupFunction.Arn
         ConfirmsignupFunctionArn: !GetAtt ConfirmsignupFunction.Arn
         ResendCodeFunctionArn: !GetAtt ResendCodeFunction.Arn
+        VendorSignupFunctionArn: !GetAtt VendorSignupFunction.Arn
 
 Outputs:
   SignupFunctionArn:
@@ -217,3 +234,6 @@ Outputs:
   ResendCodeFunctionArn:
     Description: "Resend Code Function ARN"
     Value: !GetAtt ResendCodeFunction.Arn
+  VendorSignupFunctionArn:
+    Description: "Vendor Signup Function ARN"
+    Value: !GetAtt VendorSignupFunction.Arn

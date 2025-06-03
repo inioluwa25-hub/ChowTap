@@ -61,6 +61,7 @@ Resources:
                   - cognito-idp:GetUserAttributeVerificationCode
                   - cognito-idp:InitiateAuth
                   - cognito-idp:AdminGetUser
+                  - cognito-idp:ResendConfirmationCode
                   - cognito-idp:AdminCreateUser
                 Resource: "*"
               
@@ -125,6 +126,7 @@ Resources:
                 Resource: 
                   - !GetAtt SignupFunction.Arn
                   - !GetAtt ConfirmsignupFunction.Arn 
+                  - !GetAtt ResendCodeFunction.Arn
 
   SignupFunction:
     Type: AWS::Serverless::Function
@@ -139,6 +141,21 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${SignupFunction}"
+      RetentionInDays: 14
+
+  ResendCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-${Stage}-${ServiceName}-resend-code-function"
+      Handler: main.handler
+      CodeUri: ./src/resend-code/
+      Role: !GetAtt SignupServiceRole.Arn
+      Description: A simple Lambda function for resending code.
+
+  ResendCodeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ResendCodeFunction}"
       RetentionInDays: 14
 
   ConfirmsignupFunction:
@@ -188,6 +205,7 @@ Resources:
         SignupApiGatewayRoleArn: !GetAtt SignupApiGatewayRole.Arn
         SignupFunctionArn: !GetAtt SignupFunction.Arn
         ConfirmsignupFunctionArn: !GetAtt ConfirmsignupFunction.Arn
+        ResendCodeFunctionArn: !GetAtt ResendCodeFunction.Arn
 
 Outputs:
   SignupFunctionArn:
@@ -196,3 +214,6 @@ Outputs:
   ConfirmsignupFunctionArn:
     Description: "Signup Function ARN"
     Value: !GetAtt ConfirmsignupFunction.Arn
+  ResendCodeFunctionArn:
+    Description: "Resend Code Function ARN"
+    Value: !GetAtt ResendCodeFunction.Arn

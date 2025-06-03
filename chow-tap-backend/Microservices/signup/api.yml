@@ -15,6 +15,8 @@ Parameters:
     Type: String
   ConfirmsignupFunctionArn:
     Type: String
+  ResendCodeFunctionArn:
+    Type: String
 
 Resources:
   SignupApi:
@@ -109,6 +111,45 @@ Resources:
                       method.response.header.Access-Control-Allow-Origin: "'*'"
                     responseTemplates:
                       application/json: "{}"
+          
+          /resend-code:
+            post:
+              x-amazon-apigateway-integration:
+                credentials: !Ref SignupApiGatewayRoleArn
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ResendCodeFunctionArn}/invocations"
+              responses:
+                '200':
+                  description: Successful confirm sign up
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+            options:
+              responses:
+                "200":
+                  description: "CORS response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
 
   SignupApiPermission:
     Type: AWS::Lambda::Permission
@@ -125,6 +166,14 @@ Resources:
       FunctionName: !Ref ConfirmsignupFunctionArn
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SignupApi}/${Stage}/*/*"
+  
+  ResendCodeApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ResendCodeFunctionArn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SignupApi}/${Stage}/*/*"
 
 Outputs:
   SignupApiUrl:
@@ -138,4 +187,10 @@ Outputs:
     Value: !Sub "https://${SignupApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/confirm-signup"
   ConfirmsignupApiId:
     Description: "Confirm signup API ID"
+    Value: !Ref SignupApi
+  ResendCodeApiUrl:
+    Description: "Resend code API endpoint URL"
+    Value: !Sub "https://${SignupApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/resend-code"
+  ResendCodeApiId:
+    Description: "Resend code API ID"
     Value: !Ref SignupApi

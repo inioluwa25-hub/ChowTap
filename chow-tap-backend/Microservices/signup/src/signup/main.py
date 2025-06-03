@@ -148,15 +148,12 @@ def main(event, context=None):
             Username=payload.email,
             Password=payload.password,
             UserAttributes=user_attr,
+            ValidationData=[{"Name": "email", "Value": payload.email}],
         )
-
-        response = {
-            "error": False,
-            "success": True,
-            "message": "User created and automatically confirmed",
-            "data": {"email": payload.email, "status": "CONFIRMED"},
-        }
         status_code = 200
+        response["error"] = False
+        response["success"] = True
+        response["message"] = "please confirm signup"
 
     except client.exceptions.UsernameExistsException as e:
         logger.error(e)

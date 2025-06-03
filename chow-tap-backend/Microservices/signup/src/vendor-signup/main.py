@@ -140,7 +140,7 @@ def main(event, context=None):
             {"Name": "given_name", "Value": payload.first_name},
             {"Name": "family_name", "Value": payload.last_name},
             {"Name": "phone_number", "Value": e164_phone},
-            {"Name": "custom:is_vendor", "Value": "true"},
+            {"Name": "custom:is_vendor", "Value": "True"},
         ]
 
         client.sign_up(

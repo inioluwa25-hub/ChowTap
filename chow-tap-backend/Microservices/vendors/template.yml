@@ -274,8 +274,8 @@ Resources:
         AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
         AllowOrigin: "'*'"
-        # Fix: Set to true if your frontend sends credentials
-        AllowCredentials: true  # Change this based on your frontend implementation
+        # Must be false when AllowOrigin is "*"
+        AllowCredentials: false
         MaxAge: "'600'"
       # Additional Gateway Responses for CORS
       GatewayResponses:
@@ -285,21 +285,18 @@ Resources:
               Access-Control-Allow-Origin: "'*'"
               Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
               Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-              Access-Control-Allow-Credentials: "'true'"  # Add this if AllowCredentials is true
         DEFAULT_5XX:
           ResponseParameters:
             Headers:
               Access-Control-Allow-Origin: "'*'"
               Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
               Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-              Access-Control-Allow-Credentials: "'true'"  # Add this if AllowCredentials is true
         UNAUTHORIZED:
           ResponseParameters:
             Headers:
               Access-Control-Allow-Origin: "'*'"
               Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
               Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-              Access-Control-Allow-Credentials: "'true'"  # Add this if AllowCredentials is true
 
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion

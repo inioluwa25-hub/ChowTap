@@ -86,6 +86,7 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Query
                   - dynamodb:Scan
+                  - dynamodb:BatchGetItem
                 Resource: 
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"

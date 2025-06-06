@@ -51,8 +51,8 @@ class ProductSchema(BaseModel):
     def validate_complementary_products(cls, v):
         if v is None:
             return []
-        if len(v) > 5:
-            raise ValueError("Maximum of 5 complementary products allowed")
+        if len(v) > 15:
+            raise ValueError("Maximum of 15 complementary products allowed")
         return v
 
 
@@ -117,7 +117,7 @@ def main(event, context=None):
             response["message"] = "Complete registration to become a vendor"
             return make_response(status_code, response)
 
-        product_id = f"Product#{user_id}#{uuid4()}"
+        product_id = f"Product#{vendor.get('sk')}#{uuid4()}"
         timestamp = int(time())
 
         # Build product payload
@@ -179,16 +179,14 @@ def main(event, context=None):
                     KeyConditionExpression="gsi1pk = :vendor",
                     ExpressionAttributeValues={
                         ":vendor": f"Vendor#{user_id}",
-                    },
-                    Limit=5,
-                    ScanIndexForward=False,  # Assuming higher price = more popular
-                    FilterExpression="category IN (:cat1, :cat2, :cat3, :cat4)",
-                    ExpressionAttributeValues={
                         ":cat1": "side_dish",
                         ":cat2": "protein",
                         ":cat3": "drink",
                         ":cat4": "snack",
                     },
+                    Limit=5,
+                    ScanIndexForward=False,  # Assuming higher price = more popular
+                    FilterExpression="category IN (:cat1, :cat2, :cat3, :cat4)",
                 ).get("Items", [])
 
                 # Add top complements (prioritizing side dishes if available)

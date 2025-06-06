@@ -11,10 +11,6 @@ Parameters:
     Type: String
   AwsLambdaPowertoolsPythonLayer:
     Type: String
-  UserPoolId:
-    Type: String
-    Description: The Cognito User Pool ID
-    Default: "us-east-1_N69lOUMSh"
     
 Globals:
   Function:
@@ -136,15 +132,6 @@ Resources:
       CodeUri: ./src/favorite-vendor/create-favorite/
       Role: !GetAtt VendorServiceRole.Arn
       Description: Create favorites on the application
-      Events:
-        CreateFavorite:
-          Type: Api
-          Properties:
-            Path: /create-favorite
-            Method: POST
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: CognitoAuthorizer
 
   ListFavoriteFunction:
     Type: AWS::Serverless::Function
@@ -154,15 +141,6 @@ Resources:
       CodeUri: ./src/favorite-vendor/list-favorite/
       Role: !GetAtt VendorServiceRole.Arn
       Description: List favorites on the application
-      Events:
-        ListFavorite:
-          Type: Api
-          Properties:
-            Path: /list-favorite
-            Method: POST
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: CognitoAuthorizer
 
   CreateVendorFunction:
     Type: AWS::Serverless::Function
@@ -172,15 +150,6 @@ Resources:
       CodeUri: ./src/create-vendor/
       Role: !GetAtt VendorServiceRole.Arn
       Description: Create vendors on the application
-      Events:
-        CreateVendor:
-          Type: Api
-          Properties:
-            Path: /create-vendor
-            Method: POST
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: CognitoAuthorizer
 
   GetVendorFunction:
     Type: AWS::Serverless::Function
@@ -190,15 +159,6 @@ Resources:
       CodeUri: ./src/get-vendor/
       Role: !GetAtt VendorServiceRole.Arn
       Description: Get vendors on the application
-      Events:
-        GetVendor:
-          Type: Api
-          Properties:
-            Path: /get-vendor
-            Method: GET
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: CognitoAuthorizer
 
   GetVendorIdFunction:
     Type: AWS::Serverless::Function
@@ -208,15 +168,6 @@ Resources:
       CodeUri: ./src/get-vendor-id/
       Role: !GetAtt VendorServiceRole.Arn
       Description: Get vendors by id on the application
-      Events:
-        GetVendorId:
-          Type: Api
-          Properties:
-            Path: /get-vendor-id
-            Method: POST
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: CognitoAuthorizer
 
   VendorRatingFunction:
     Type: AWS::Serverless::Function
@@ -226,15 +177,6 @@ Resources:
       CodeUri: ./src/vendor-rating/
       Role: !GetAtt VendorServiceRole.Arn
       Description: Vendor rating on the application
-      Events:
-        GetVendorId:
-          Type: Api
-          Properties:
-            Path: /vendor-rating
-            Method: POST
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: CognitoAuthorizer
 
   ListVendorsFunction:
     Type: AWS::Serverless::Function
@@ -244,16 +186,8 @@ Resources:
       CodeUri: ./src/list-vendor/
       Role: !GetAtt VendorServiceRole.Arn
       Description: List vendors on the application
-      Events:
-        ListVendors:
-          Type: Api
-          Properties:
-            Path: /list-vendors
-            Method: GET
-            RestApiId: !Ref VendorApi
-            Auth:
-              Authorizer: NONE
 
+  # Replace the simple API with OpenAPI specification
   VendorApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -261,42 +195,348 @@ Resources:
       Name: !Sub "${AppName}-${Stage}-${ServiceName}-vendor-api"
       TracingEnabled: true
       EndpointConfiguration: REGIONAL
-      Auth:
-        DefaultAuthorizer: CognitoAuthorizer
-        Authorizers:
-          CognitoAuthorizer:
-            # Fix: Make this configurable or ensure it matches your actual user pool
-            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}"
-            Identity:
-              Header: "Authorization"
-      # Enhanced CORS Configuration
-      Cors:
-        AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
-        AllowOrigin: "'*'"
-        # Must be false when AllowOrigin is "*"
-        AllowCredentials: false
-        MaxAge: "'600'"
-      # Additional Gateway Responses for CORS
-      GatewayResponses:
-        DEFAULT_4XX:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
-              Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-        DEFAULT_5XX:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
-              Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
-        UNAUTHORIZED:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
-              Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      DisableExecuteApiEndpoint: false
+      DefinitionBody:
+        openapi: 3.0.3
+        info:
+          version: 1.0.0
+          title: !Sub "${AppName}-${Stage}-${ServiceName}-api"
+          description: API for managing vendors
+
+        components:
+          securitySchemes:
+            CognitoAuthorizer:
+              type: apiKey
+              name: Authorization
+              in: header
+              x-amazon-apigateway-authtype: cognito_user_pools
+              x-amazon-apigateway-authorizer:
+                type: cognito_user_pools
+                providerARNs:
+                  - !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/us-east-1_N69lOUMSh"
+
+        paths:
+          /create-favorite:
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateFavoriteFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /list-favorite:
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ListFavoriteFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /create-vendor:
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateVendorFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /get-vendor:
+            get:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetVendorFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /get-vendor-id:
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetVendorIdFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /vendor-rating:
+            post:
+              security:
+                - CognitoAuthorizer: []
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${VendorRatingFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+          /list-vendors:
+            get:
+              # No security for this endpoint (NONE auth)
+              x-amazon-apigateway-integration:
+                credentials: !GetAtt VendorApiGatewayRole.Arn
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ListVendorsFunction.Arn}/invocations"
+            options:
+              consumes:
+                - application/json
+              produces:
+                - application/json
+              responses:
+                "200":
+                  description: "200 response"
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Headers:
+                      type: "string"
+              x-amazon-apigateway-integration:
+                type: "mock"
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS,GET,HEAD,PATCH,POST,PUT'"
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: "{}"
+
+  # Lambda Permissions
+  CreateFavoritePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CreateFavoriteFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/POST/create-favorite"
+
+  ListFavoritePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ListFavoriteFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/POST/list-favorite"
+
+  CreateVendorPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CreateVendorFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/POST/create-vendor"
+
+  GetVendorPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetVendorFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/GET/get-vendor"
+
+  GetVendorIdPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GetVendorIdFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/POST/get-vendor-id"
+
+  VendorRatingPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref VendorRatingFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/POST/vendor-rating"
+
+  ListVendorsPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ListVendorsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VendorApi}/${Stage}/GET/list-vendors"
 
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion

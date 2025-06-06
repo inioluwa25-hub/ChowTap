@@ -204,7 +204,96 @@ def main(event, context=None):
                     item["sk"] for item in suggested_complements[:3]
                 ]
 
-        table.put_item(Item=product_payload)
+        # Use a transaction to ensure atomicity
+        from boto3.dynamodb.conditions import Attr
+
+        try:
+            # Create product summary for vendor record
+            product_summary = {
+                "product_id": product_id,
+                "food_name": product_payload["food_name"],
+                "category": product_payload["category"],
+                "price": product_payload["price"],
+                "is_available": product_payload["is_available"],
+                "created_at": timestamp,
+            }
+
+            # Perform transaction - create product and update vendor
+            table.meta.client.transact_write_items(
+                TransactItems=[
+                    {
+                        "Put": {
+                            "TableName": table.name,
+                            "Item": {
+                                k: (
+                                    {"S": str(v)}
+                                    if isinstance(v, str)
+                                    else (
+                                        {"N": str(v)}
+                                        if isinstance(v, (int, float))
+                                        else (
+                                            {"BOOL": v}
+                                            if isinstance(v, bool)
+                                            else (
+                                                {"L": [{"S": item} for item in v]}
+                                                if isinstance(v, list)
+                                                else {"S": str(v)}
+                                            )
+                                        )
+                                    )
+                                )
+                                for k, v in product_payload.items()
+                            },
+                        }
+                    },
+                    {
+                        "Update": {
+                            "TableName": table.name,
+                            "Key": {
+                                "pk": {"S": "Vendor"},
+                                "sk": {"S": f"Vendor#{user_id}"},
+                            },
+                            "UpdateExpression": "SET product_count = if_not_exists(product_count, :zero) + :inc, updated_at = :timestamp ADD products :product_summary",
+                            "ExpressionAttributeValues": {
+                                ":inc": {"N": "1"},
+                                ":zero": {"N": "0"},
+                                ":timestamp": {"N": str(timestamp)},
+                                ":product_summary": {
+                                    "SS": [json.dumps(product_summary)]
+                                },
+                            },
+                        }
+                    },
+                ]
+            )
+
+            logger.info(
+                f"Product created and vendor updated successfully: {product_id}"
+            )
+
+        except Exception as transaction_error:
+            logger.error(f"Transaction failed: {str(transaction_error)}")
+            # Fallback to individual operations if transaction fails
+            try:
+                # Create the product first
+                table.put_item(Item=product_payload)
+
+                # Then update the vendor record
+                table.update_item(
+                    Key={"pk": "Vendor", "sk": f"Vendor#{user_id}"},
+                    UpdateExpression="SET product_count = if_not_exists(product_count, :zero) + :inc, updated_at = :timestamp ADD products :product_summary",
+                    ExpressionAttributeValues={
+                        ":inc": 1,
+                        ":zero": 0,
+                        ":timestamp": timestamp,
+                        ":product_summary": {json.dumps(product_summary)},
+                    },
+                )
+                logger.info(f"Fallback operations successful for product: {product_id}")
+
+            except Exception as fallback_error:
+                logger.error(f"Fallback operations also failed: {str(fallback_error)}")
+                raise fallback_error
 
         response.update(
             {
@@ -217,7 +306,7 @@ def main(event, context=None):
                         "complementary_products", []
                     ),
                 },
-                "message": "Product created successfully",
+                "message": "Product created successfully and vendor updated",
             }
         )
         status_code = 200

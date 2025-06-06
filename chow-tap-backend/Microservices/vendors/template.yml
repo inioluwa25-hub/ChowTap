@@ -88,7 +88,7 @@ Resources:
                   - dynamodb:Scan
                 Resource: 
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
-                  - !Sub "arn:aws:dynamo--table/chow-tap-${Stage}-main-table/index/*"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"
 
   VendorApiGatewayRole:
     Type: AWS::IAM::Role
@@ -299,7 +299,7 @@ Resources:
       Description: Dependencies for the auth service Lambda function
       ContentUri: dependencies/requirements/
       CompatibleRuntimes:
-        - python3.9
+        - python3.10
       LicenseInfo: MIT
     Metadata:
       BuildMethod: python3.10
@@ -310,6 +310,8 @@ Resources:
       LayerName: !Sub "${AppName}-${Stage}-${ServiceName}-utils-layer"
       Description: Utility functions for Lambda
       ContentUri: ./dependencies/utils/
+      CompatibleRuntimes:
+        - python3.10
     Metadata:
       BuildMethod: python3.10
 

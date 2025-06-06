@@ -88,7 +88,7 @@ Resources:
                   - dynamodb:Scan
                 Resource: 
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table"
-                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/chow-tap-${Stage}-main-table/index/*"
+                  - !Sub "arn:aws:dynamo--table/chow-tap-${Stage}-main-table/index/*"
 
   VendorApiGatewayRole:
     Type: AWS::IAM::Role
@@ -264,11 +264,33 @@ Resources:
             UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/us-east-1_N69lOUMSh
             Identity:
               Header: "Authorization"
+      # Enhanced CORS Configuration
       Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id'"
+        AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
         AllowOrigin: "'*'"
-        AllowCredentials: "'true'"
+        AllowCredentials: false
+        MaxAge: "'600'"
+      # Additional Gateway Responses for CORS
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
+              Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
+              Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+        UNAUTHORIZED:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id,Accept,Referer,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,User-Agent'"
+              Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
 
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion

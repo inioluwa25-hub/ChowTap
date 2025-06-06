@@ -62,11 +62,10 @@ def make_response(status, message, log=True):
         "statusCode": status,
         "body": json.dumps(message, default=convert_decimal_to_float),
         "headers": {
-            "X-RequestID": "veculref34ac286d-644b-4443-af19-df153f123fe9",
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Credentials": True,
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Allow-Methods": "OPTIONS,GET,POST",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+            "Access-Control-Allow-Credentials": "true",
         },
     }
 

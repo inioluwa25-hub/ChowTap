@@ -265,9 +265,10 @@ Resources:
             Identity:
               Header: "Authorization"
       Cors:
-        AllowMethods: "'POST,GET,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'"
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amzn-Trace-Id'"
         AllowOrigin: "'*'"
+        AllowCredentials: "'true'"
 
   PythonRequirementsLayer:
     Type: AWS::Serverless::LayerVersion

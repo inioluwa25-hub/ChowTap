@@ -25,6 +25,20 @@ response = {
 }
 
 
+def get_template_from_s3(template_name):
+    s3_client = boto3.client("s3")
+    try:
+        context.info("call s3")
+        response = s3_client.get_object(
+            Bucket="chowtap-media", Key=f"templates/{template_name}.html"
+        )
+        template_data = response["Body"].read().decode("utf-8")
+        return template_data
+    except Exception as e:
+        context.error("Error retrieving template from S3:", e)
+        return None
+
+
 def admin_get_user(cognito_client, user_pool_id, username):
     response = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=username)
     data = {attr.get("Name"): attr.get("Value") for attr in response["UserAttributes"]}

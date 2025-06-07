@@ -4,15 +4,12 @@ import hmac
 import json
 import re
 import traceback
-import requests
 from os import getenv
-import dns.resolver
-import smtplib
-import socket
 import boto3
+from botocore.exceptions import ClientError
 from aws_lambda_powertools.utilities import parameters
 from pydantic import BaseModel, EmailStr, validator
-from utils import handle_exceptions, logger, make_response
+from utils import handle_exceptions, logger, make_response, get_template_from_s3
 
 # Environment variables
 STAGE = getenv("STAGE")
@@ -24,8 +21,9 @@ CLIENT_SECRET = parameters.get_parameter(
     f"/{APP_NAME}/{STAGE}/CLIENT_SECRET", decrypt=True
 )
 
-# AWS client
-client = boto3.client("cognito-idp")
+# AWS clients
+cognito_client = boto3.client("cognito-idp")
+s3_client = boto3.client("s3")
 
 
 class SignupSchema(BaseModel):
@@ -77,34 +75,121 @@ def get_secret_hash_individual(username: str) -> str:
     return d2
 
 
-# def verify_email_api(email: str) -> bool:
-#     try:
-#         api_key = "05e73f2c-266f-43e2-a1db-5b4a696400f0"
-#         response = requests.get(
-#             f"https://api.mails.so/v1/validate?email={email}",
-#             headers={"x-mails-api-key": api_key},
-#             timeout=3,
-#         )
-#         response.raise_for_status()
-#         data = response.json()
+def configure_user_pool_with_s3_template(template_key: str) -> bool:
+    """
+    Configure Cognito User Pool to use S3 template for verification emails
 
-#         # Check the actual response structure from your API
-#         if data.get("error") is not None:
-#             logger.error(f"Email verification API error: {data.get('error')}")
-#             return True  # Fail open
+    Args:
+        template_key (str): S3 object key for the template
 
-#         # Use the correct field from your API response
-#         return data.get("data", {}).get("result") == "deliverable"
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Load template from S3
+        template_content = get_template_from_s3(template_key)
 
-#     except requests.exceptions.RequestException as e:
-#         logger.error(f"Email verification API request failed: {str(e)}")
-#         return True  # Fallback to true if service fails
-#     except json.JSONDecodeError as e:
-#         logger.error(f"Invalid JSON response from email verification API: {str(e)}")
-#         return True  # Fallback to true
-#     except Exception as e:
-#         logger.error(f"Unexpected error in email verification: {str(e)}")
-#         return True  # Fail open
+        # Configure Cognito User Pool with the template
+        response = cognito_client.update_user_pool(
+            UserPoolId=POOL_ID,
+            VerificationMessageTemplate={
+                "EmailMessage": template_content,
+                "EmailSubject": "Verify Your Account - Welcome! 🎉",
+                "DefaultEmailOption": "CONFIRM_WITH_CODE",
+            },
+        )
+
+        logger.info("Successfully configured User Pool with S3 template")
+        return True
+
+    except ClientError as e:
+        logger.error(f"Error configuring User Pool with S3 template: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error configuring User Pool: {e}")
+        return False
+
+
+def sign_up_user_with_template(payload: SignupSchema) -> dict:
+    """
+    Sign up user and ensure User Pool is configured with S3 template
+
+    Args:
+        payload (SignupSchema): User signup data
+
+    Returns:
+        dict: Response with success status and details
+    """
+    try:
+        # First, ensure the User Pool is configured with our S3 template
+        # This is idempotent - safe to call multiple times
+        template_configured = configure_user_pool_with_s3_template("chowtap-media")
+
+        if not template_configured:
+            logger.warning(
+                "Failed to configure S3 template, proceeding with default template"
+            )
+
+        # Convert Nigerian phone number to E.164 format
+        e164_phone = "+234" + payload.phone_number[1:]
+
+        # Prepare user attributes
+        user_attributes = [
+            {"Name": "email", "Value": payload.email},
+            {"Name": "given_name", "Value": payload.first_name},
+            {"Name": "family_name", "Value": payload.last_name},
+            {"Name": "phone_number", "Value": e164_phone},
+        ]
+
+        # Sign up the user
+        response = cognito_client.sign_up(
+            ClientId=CLIENT_ID,
+            SecretHash=get_secret_hash_individual(payload.email),
+            Username=payload.email,
+            Password=payload.password,
+            UserAttributes=user_attributes,
+            ValidationData=[{"Name": "email", "Value": payload.email}],
+        )
+
+        logger.info(f"User {payload.email} signed up successfully")
+        logger.info(
+            f"Verification email sent using {'S3 template' if template_configured else 'default template'}"
+        )
+
+        return {
+            "success": True,
+            "user_sub": response["UserSub"],
+            "message": "User signed up successfully. Please check your email for verification code.",
+            "template_used": (
+                "S3 template" if template_configured else "default template"
+            ),
+        }
+
+    except cognito_client.exceptions.UsernameExistsException:
+        return {
+            "success": False,
+            "error_code": "UsernameExistsException",
+            "message": "User already exists",
+        }
+    except cognito_client.exceptions.InvalidPasswordException as e:
+        return {
+            "success": False,
+            "error_code": "InvalidPasswordException",
+            "message": str(e).split(":", 1)[-1].strip(),
+        }
+    except cognito_client.exceptions.InvalidParameterException as e:
+        return {
+            "success": False,
+            "error_code": "InvalidParameterException",
+            "message": str(e).split(":", 1)[-1].strip(),
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error during signup: {e}")
+        return {
+            "success": False,
+            "error_code": "InternalError",
+            "message": "An unexpected error occurred during signup",
+        }
 
 
 @logger.inject_lambda_context(log_event=True)
@@ -119,79 +204,75 @@ def main(event, context=None):
     }
 
     try:
+        # Parse request body
         body = json.loads(event["body"])
         payload = SignupSchema(**body)
 
-        # # Verify email before proceeding
-        # if not verify_email_api(payload.email):
-        #     return make_response(
-        #         400,
-        #         {
-        #             "error": True,
-        #             "success": False,
-        #             "message": "Please provide a valid, deliverable email address",
-        #             "data": None,
-        #         },
-        #     )
+        # Sign up user with S3 template
+        signup_result = sign_up_user_with_template(payload)
 
-        e164_phone = "+234" + payload.phone_number[1:]
-        user_attr = [
-            {"Name": "email", "Value": payload.email},
-            {"Name": "given_name", "Value": payload.first_name},
-            {"Name": "family_name", "Value": payload.last_name},
-            {"Name": "phone_number", "Value": e164_phone},
-        ]
+        logger.info(f"Sign up result: {signup_result}")
 
-        client.sign_up(
-            ClientId=CLIENT_ID,
-            SecretHash=get_secret_hash_individual(payload.email),
-            Username=payload.email,
-            Password=payload.password,
-            UserAttributes=user_attr,
-            ValidationData=[{"Name": "email", "Value": payload.email}],
-        )
-        status_code = 200
-        response["error"] = False
-        response["success"] = True
-        response["message"] = "please confirm signup"
-
-    except client.exceptions.UsernameExistsException as e:
-        logger.error(e)
-        response.update(
-            {"message": "User already exists", "error": True, "success": False}
-        )
-        status_code = 409
-    except client.exceptions.InvalidParameterException as e:
-        if "Username should be an email" in str(e):
-            response["message"] = (
-                "Server configuration error: Phone number as username not enabled"
+        if signup_result["success"]:
+            status_code = 200
+            response.update(
+                {
+                    "error": False,
+                    "success": True,
+                    "message": signup_result["message"],
+                    "data": {
+                        "user_sub": signup_result["user_sub"],
+                        "template_used": signup_result["template_used"],
+                    },
+                }
             )
         else:
-            response["message"] = str(e).split(":", 1)[-1].strip()
-    except client.exceptions.InvalidPasswordException as e:
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.UserLambdaValidationException as e:
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.UserNotConfirmedException as e:
-        logger.error(e)
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
-    except client.exceptions.InvalidParameterException as e:
-        response_string = str(e)
-        response["message"] = response_string.split(":", 1)[-1].strip()
+            # Handle specific Cognito errors
+            if signup_result["error_code"] == "UsernameExistsException":
+                status_code = 409
+            elif signup_result["error_code"] in [
+                "InvalidPasswordException",
+                "InvalidParameterException",
+            ]:
+                status_code = 400
+            else:
+                status_code = 500
+
+            response.update(
+                {"error": True, "success": False, "message": signup_result["message"]}
+            )
+
     except ValueError as e:
-        logger.error(e)
-        error_message = {}
-        for field, errors in e.messages.items():
-            error_message[field] = errors[0]
-        response["message"] = error_message
-    except KeyError:
-        traceback.print_exc()
+        # Handle Pydantic validation errors
+        logger.error(f"Validation error: {e}")
+        error_messages = {}
+
+        if hasattr(e, "errors"):
+            for error in e.errors():
+                field = error["loc"][-1] if error["loc"] else "unknown"
+                error_messages[field] = error["msg"]
+        else:
+            error_messages = {"validation": str(e)}
+
+        response["message"] = error_messages
+        status_code = 400
+
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON in request body")
+        response["message"] = "Invalid JSON in request body"
+        status_code = 400
+
+    except KeyError as e:
+        logger.error(f"Missing required field: {e}")
+        response["message"] = f"Missing required field: {e}"
+        status_code = 400
+
     except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        traceback.print_exc()
         status_code = 500
-        logger.error(e)
+        response["message"] = "Internal server error"
+
     return make_response(status_code, response)
 
 
